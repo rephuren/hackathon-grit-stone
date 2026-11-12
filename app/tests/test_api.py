@@ -7,6 +7,7 @@ import os
 import re
 import tempfile
 import time
+from datetime import date
 from urllib.parse import urlencode
 
 os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="picpac_test_")
@@ -117,15 +118,17 @@ def test_calendar_product_price_and_layout(client, anna):
     project = client.get(f"/api/projects/{pid}", headers=anna).json()
     assert project["settings"]["pages"] == 12
     assert project["settings"]["cover"] == "spiral"
+    assert project["settings"]["year"] == date.today().year + 1
 
     price = client.post("/api/price", json={
         "product_id": "calendar",
-        "settings": {"size": "a4", "cover": "spiral", "pages": 12, "copies": 2},
+        "settings": {"size": "a4", "cover": "spiral", "pages": 12, "year": date.today().year + 1, "copies": 2},
         "n_photos": 12,
     }, headers=anna)
     assert price.status_code == 200, price.text
     assert price.json()["subtotal"] == 9000
     assert "12 месяцев" in price.json()["lines"][0]["title"]
+    assert str(date.today().year + 1) in price.json()["lines"][0]["title"]
 
     bad = client.post("/api/price", json={
         "product_id": "calendar",
@@ -149,6 +152,12 @@ def test_calendar_product_price_and_layout(client, anna):
     checked = client.get(f"/api/projects/{pid}/check", headers=anna).json()
     assert checked["ok"] is True
     assert not checked["blocking"]
+
+    delivery = {"method": "pvz", "pvz_id": "pvz-01", "recipient_name": "Анна", "phone": "+375291234567"}
+    ordered = client.post("/api/orders", json={"project_id": pid, "delivery": delivery, "accept_warnings": True},
+                          headers={**anna, "Idempotency-Key": "calendar-order-0001"})
+    assert ordered.status_code == 200, ordered.text
+    assert ordered.json()["project_title"]
 
 
 def test_preflight_and_full_order_flow(client, anna):

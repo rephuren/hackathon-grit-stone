@@ -293,4 +293,4 @@ html{touch-action:manipulation}[data-act],[data-i],[data-tab],[data-f],[data-opt
 .tile .tl2 button.on{font-size:14px;font-weight:800;white-space:nowrap}
 
 /* три вкладки типа продукта помещаются на 360-390 px */
-@media(max-width:420px){.seg>*{flex:1 1 auto;padding:8px 9px;gap:6px;font-size:14px}.seg svg.ic{width:18px;height:18px}}
+@media(max-width:420px){.seg>*{flex:1 1 auto;padding:8px 6px;gap:5px;font-size:14px}.seg svg.ic{width:16px;height:16px}}

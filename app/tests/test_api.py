@@ -785,3 +785,94 @@ def test_edit_command_rules_without_network(client, anna, monkeypatch):
     assert {"op": "text", "value": "Лето 2026"} in r["ops"] and {"op": "crop", "ratio": "1:1"} in r["ops"]
     assert client.post("/api/edit-command", json={"text": "добавь мне шапку"}, headers=anna).json()["ops"] == [{"op": "unsupported"}]
     assert client.post("/api/edit-command", json={"text": "ярче"}).status_code == 401
+
+
+def _fake_subscription():
+    import base64
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    pk = ec.generate_private_key(ec.SECP256R1())
+    pub = pk.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+    b64 = lambda b: base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+    return {"endpoint": "https://push.example.test/sub/" + os.urandom(6).hex(), "keys": {"p256dh": b64(pub), "auth": b64(os.urandom(16))}}
+
+
+def test_web_push_subscribe_send_and_expire(client, anna, oper, monkeypatch):
+    pytest.importorskip("pywebpush")
+    import pywebpush
+    from backend import webpush as WP
+    cfg = client.get("/api/push/config", headers=anna).json()
+    assert cfg["enabled"] and len(cfg["public_key"]) > 80 and cfg["subscriptions"] == 0
+    assert client.get("/api/push/config").status_code == 401
+    assert client.post("/api/push/test", headers=anna).status_code == 409  # подписки ещё нет — понятная ошибка
+    sub = _fake_subscription()
+    assert client.post("/api/push/subscribe", json={**sub, "endpoint": "http://bad"}, headers=anna).status_code == 422
+    assert client.post("/api/push/subscribe", json=sub, headers=anna).json()["subscriptions"] == 1
+
+    sent = []
+
+    class Resp:
+        def __init__(self, code):
+            self.status_code, self.text, self.headers, self.reason = code, "", {}, "Gone"
+
+    code = {"v": 201}
+
+    def fake_post(url, data=None, headers=None, timeout=None, **kw):
+        sent.append({"url": url, "headers": headers, "len": len(data or b"")})
+        return Resp(code["v"])
+
+    monkeypatch.setattr(pywebpush.requests, "post", fake_post)
+    r = client.post("/api/push/test", headers=anna).json()
+    assert r == {"sent": 1, "failed": 0, "errors": []}
+    h = sent[-1]["headers"]
+    assert sent[-1]["url"] == sub["endpoint"] and h["Content-Encoding"] == "aes128gcm" and sent[-1]["len"] > 0
+    assert h["Authorization"].startswith("vapid t=")  # подпись VAPID, текст зашифрован ключом подписки
+
+    # смена статуса заказа оператором отправляет push клиенту
+    monkeypatch.setattr(WP, "notify_user", lambda uid, t, b, u="/": WP.send_to_user(uid, t, b, u))
+    pid = new_project(client, anna, "print")
+    client.post(f"/api/projects/{pid}/photos", files=files(("a.jpg", jpeg(noise(1800, 1200)))), headers=anna)
+    o = client.post("/api/orders", json={"project_id": pid, "delivery": {"method": "pvz", "pvz_id": client.get("/api/pickup-points").json()[0]["id"], "recipient_name": "Тест Тестов", "phone": "+375290000000"}, "accept_warnings": True},
+                    headers={**anna, "Idempotency-Key": "push-" + os.urandom(4).hex()}).json()
+    n0 = len(sent)
+    assert n0 >= 2  # уведомление о новом заказе
+    assert client.post(f"/api/admin/orders/{o['id']}/status", json={"to": "moderation"}, headers=oper).status_code == 200
+    assert len(sent) == n0 + 1
+
+    # браузер отозвал подписку (410) — сервер удаляет её, заказ не ломается
+    code["v"] = 410
+    r = client.post("/api/push/test", headers=anna).json()
+    assert r["sent"] == 0 and r["errors"] == ["http_410"]
+    assert client.get("/api/push/config", headers=anna).json()["subscriptions"] == 0
+
+
+def test_moderation_flags_photo_for_operator_only(client, anna, oper, monkeypatch):
+    from backend import moderation as M
+    monkeypatch.setattr(M, "available", lambda: True)
+    scores = iter([0.95, 0.02])
+    monkeypatch.setattr(M, "score", lambda b: next(scores))
+    pid = new_project(client, anna, "print")
+    r = client.post(f"/api/projects/{pid}/photos", files=files(("a.jpg", jpeg(noise(1800, 1200))), ("b.jpg", jpeg(noise(1800, 1200, 0.9)))), headers=anna)
+    assert r.json()["added"] == 2
+    ck = client.get(f"/api/projects/{pid}/check", headers=anna).json()
+    mod = [w for w in ck["warnings"] if w["code"] == "moderation"]
+    assert len(mod) == 1 and "оператор" in mod[0]["message"]  # предупреждение, а не запрет
+    flagged_id = mod[0]["photo_id"]  # правка фото не стирает пометку модерации
+    assert client.put(f"/api/projects/{pid}/photos/{flagged_id}/edit", json={"edits": {"filter": "warm"}}, headers=anna).status_code == 200
+    assert [w for w in client.get(f"/api/projects/{pid}/check", headers=anna).json()["warnings"] if w["code"] == "moderation"]
+    o = client.post("/api/orders", json={"project_id": pid, "delivery": {"method": "pvz", "pvz_id": client.get("/api/pickup-points").json()[0]["id"], "recipient_name": "Тест Тестов", "phone": "+375290000000"}, "accept_warnings": True},
+                    headers={**anna, "Idempotency-Key": "mod-" + os.urandom(4).hex()})
+    assert o.status_code == 200 and "moderation" not in o.json()  # клиент служебную пометку не видит
+    adm = next(x for x in client.get("/api/admin/orders", headers=oper).json() if x["id"] == o.json()["id"])
+    assert adm["moderation"] == {"flagged": 1, "checked": 2, "photos": 2}
+    assert any(a["action"] == "moderation_flag" for a in client.get("/api/admin/audit", headers=oper).json())
+    assert client.get("/api/admin/orders", headers=anna).status_code == 403
+
+
+def test_moderation_off_does_not_break_upload(client, anna, monkeypatch):
+    from backend import moderation as M
+    monkeypatch.setattr(M, "available", lambda: False)
+    pid = new_project(client, anna, "print")
+    r = client.post(f"/api/projects/{pid}/photos", files=files(("a.jpg", jpeg(noise(1800, 1200)))), headers=anna)
+    assert r.json()["added"] == 1
+    assert not [w for w in client.get(f"/api/projects/{pid}/check", headers=anna).json()["warnings"] if w["code"] == "moderation"]

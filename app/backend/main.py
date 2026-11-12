@@ -30,9 +30,11 @@ from . import editcmd as EC
 from . import db as D
 from . import imagegen as G
 from . import imaging as I
+from . import moderation as M
 from . import preflight as P
 from . import security as S
 from . import tgbot as TG
+from . import webpush as WP
 
 MAX_FILE = 15 * 1024 * 1024
 MAX_PHOTOS = 200
@@ -52,6 +54,10 @@ FUNNEL = [("app_open", "Открыли приложение"), ("product_view", 
 @asynccontextmanager
 async def lifespan(_app):
     D.init_db()
+    with D.db() as c:
+        WP.init(c)
+    if M.available():  # модель модерации грузим заранее: первая загрузка фото не ждёт
+        asyncio.create_task(asyncio.to_thread(M.warmup))
     if G.available():  # модель генерации грузим заранее в фоне: первый запрос не ждёт загрузки весов
         asyncio.create_task(asyncio.to_thread(G.warmup))
     poller = None
@@ -340,6 +346,59 @@ def delete_my_data(user: dict = Depends(current_user)):
     for x in ai_recent(user["id"]):  # и созданные, но не добавленные в альбом AI-кадры
         ai_drop(x["tmp_id"])
     return {"ok": True, "deleted_photos": len(ids)}
+
+
+# ---------- push-уведомления (Web Push, PWA и браузер) ----------
+class PushKeysIn(BaseModel):
+    p256dh: str = Field(max_length=200)
+    auth: str = Field(max_length=100)
+
+
+class PushSubIn(BaseModel):
+    endpoint: str = Field(max_length=1000)
+    keys: PushKeysIn
+
+
+@api.get("/push/config")
+def push_config(user: dict = Depends(current_user)):
+    k = WP.keys() if WP.enabled() else None
+    with D.db() as c:
+        n = WP.count(c, user["id"])
+    return {"enabled": bool(k), "public_key": k["public"] if k else None, "subscriptions": n,
+            "telegram": bool(user.get("tg_id")) and TG.enabled()}
+
+
+@api.post("/push/subscribe")
+def push_subscribe(body: PushSubIn, request: Request, user: dict = Depends(current_user)):
+    if not WP.enabled():
+        raise err(503, "push_disabled", "Уведомления на сервере выключены")
+    if not body.endpoint.startswith("https://"):
+        raise err(422, "bad_endpoint", "Некорректная подписка браузера")
+    with D.db() as c:
+        WP.save(c, user["id"], {"endpoint": body.endpoint, "keys": body.keys.model_dump()},
+                request.headers.get("user-agent", ""))
+        D.audit(c, user, "push_subscribe", f"user:{user['id']}")
+        n = WP.count(c, user["id"])
+    return {"ok": True, "subscriptions": n}
+
+
+@api.delete("/push/subscribe")
+def push_unsubscribe(endpoint: Optional[str] = Query(default=None, max_length=1000), user: dict = Depends(current_user)):
+    with D.db() as c:
+        n = WP.remove(c, user["id"], endpoint)
+        D.audit(c, user, "push_unsubscribe", f"user:{user['id']}", "ok", f"removed={n}")
+    return {"ok": True, "removed": n}
+
+
+@api.post("/push/test")
+def push_test(user: dict = Depends(current_user)):
+    """Пробное уведомление себе: показывает, дошло ли сообщение до push-сервиса браузера."""
+    if not WP.enabled():
+        raise err(503, "push_disabled", "Уведомления на сервере выключены")
+    r = WP.send_to_user(user["id"], "picPac: уведомления работают", "Так мы сообщим о смене статуса заказа.", "/#/orders")
+    if not r["sent"] and not r["failed"]:
+        raise err(409, "no_subscription", "На этом устройстве уведомления ещё не включены")
+    return r
 
 
 # ---------- каталог ----------
@@ -717,8 +776,14 @@ async def upload_photos(pid: str, files: list[UploadFile] = File(...), user: dic
         except P.ImageRejected as exc:
             rejected.append({"name": name, "reason": str(exc)})
             continue
+        nsfw = await asyncio.to_thread(M.score, info["thumb"])  # локально, фото никуда не уходит
+        if nsfw is not None:
+            info["q"]["nsfw"] = nsfw
         with D.db() as c:
-            added.append(store_new_photo(c, pid, user, name, info, pos))
+            photo_id = store_new_photo(c, pid, user, name, info, pos)
+            added.append(photo_id)
+            if M.flagged(info["q"]):
+                D.audit(c, user, "moderation_flag", f"photo:{photo_id}", "flag", f"score={nsfw}")
         pos += 1
     with D.db() as c:
         row = own_project(c, pid, user)
@@ -859,7 +924,7 @@ def capabilities():
     from . import inpaint
     from . import upscale
 
-    return {"bg_removal": bgremove.available(), "upscale": upscale.available(), "object_removal": inpaint.available(), "ai_generate": G.available() or AI_GENERATE,
+    return {"moderation": M.available(), "bg_removal": bgremove.available(), "upscale": upscale.available(), "object_removal": inpaint.available(), "ai_generate": G.available() or AI_GENERATE,
             "ai_local": G.available(),
             "ai_provider": ("Локальная модель на сервере picPac (наружу ничего не уходит)" if G.available()
                             else "Pollinations (только текст запроса)" if AI_GENERATE else None)}
@@ -1423,6 +1488,8 @@ def create_order(body: OrderIn, idempotency_key: str = Header(default="", alias=
         out = order_json(c, c.execute("SELECT * FROM orders WHERE id=?", (oid,)).fetchone())
     if not out.get("replayed"):
         TG.notify_user(user["id"], f"Заказ {out['number']} принят. Статус будем присылать сюда.")
+        WP.notify_user(user["id"], f"Заказ {out['number']} принят", "Пришлём уведомление, когда статус изменится.",
+                       f"/#/order/{out['id']}")
     if DEMO_MODE and demo_fail == "1":  # имитация потери ответа: заказ уже сохранён, клиент ответа не получил
         raise err(503, "demo_connection_lost", "Связь прервалась после сохранения заказа (демо)")
     return out
@@ -1484,6 +1551,10 @@ def admin_orders(status: Optional[str] = None, user: dict = Depends(operator_onl
         for r in rows:
             j = order_json(c, r)
             j["client"] = r["client"]
+            # служебная пометка модерации: видит только оператор, клиенту в order_json не отдаётся
+            qs = [json.loads(x["qx"] or "{}") for x in c.execute("SELECT qx FROM photos WHERE project_id=?", (r["project_id"],))] if r["project_id"] else []
+            j["moderation"] = {"flagged": sum(1 for q in qs if M.flagged(q)),
+                               "checked": sum(1 for q in qs if q.get("nsfw") is not None), "photos": len(qs)}
             out.append(j)
         return out
 
@@ -1512,6 +1583,9 @@ def admin_status(oid: int, body: StatusIn, user: dict = Depends(operator_only)):
     TG.notify_user(row["user_id"], f"Заказ {out['number']}: {STATUS_LABELS[body.to].lower()}."
                    + (f" Причина: {body.note.strip()}" if body.to == "rejected" else "")
                    + (f" Трек-номер (демо): {out['tracking']['number']}." if body.to == "ready" and out.get("tracking") else ""))
+    WP.notify_user(row["user_id"], f"Заказ {out['number']}: {STATUS_LABELS[body.to].lower()}",
+                   (f"Причина: {body.note.strip()}" if body.to == "rejected" else "Откройте заказ, чтобы посмотреть детали."),
+                   f"/#/order/{oid}")
     return out
 
 

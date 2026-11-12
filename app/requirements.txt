@@ -4,6 +4,7 @@ python-multipart==0.0.33
 pillow==13.0.0
 pillow-heif==1.8.1
 httpx==0.28.1
+pywebpush==2.5.0  # push-уведомления PWA; без пакета push просто выключен
 pytest==9.2.0
 # необязательно: нейросетевые функции (улучшение качества, удаление фона)
 # onnxruntime==1.31.1
@@ -11,7 +12,7 @@ pytest==9.2.0
 # необязательно: локальная генерация кадра по описанию и перевод ru→en (модели: scripts/fetch_models.py imagegen)
 # torch==2.15.0
 # diffusers==0.42.1
-# transformers==5.22.2
+# transformers==5.22.2  (+ модерация фото: scripts/fetch_models.py moderation)
 # accelerate==1.15.0
 # safetensors==0.8.0
 # sentencepiece==0.2.3

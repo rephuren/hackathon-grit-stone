@@ -155,3 +155,9 @@ html.hashero.nonavpage body::after{content:"";position:fixed;left:0;right:0;bott
 html.dark.hashero.nonavpage body::after{background:#1f2226}
 html.hashero.nonavpage body::after{height:84px}
 html.hashero.nonavpage #app>main>.topsheet{padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+/* жёлтая палитра в тёмной теме: всё, что лежит на жёлтом, — тёмным */
+html.dark .seg>.on,html.dark .seg>button.on{background:#ffda24!important;color:#171717!important;border-color:#ffda24!important}
+html.dark .seg>.on svg{stroke:#171717}
+html.dark:not(.calm) .hero h1,html.dark:not(.calm) .hero{color:#171717;text-shadow:none}
+html.dark:not(.calm) .btn:not(.line):not(.grey):not(.danger) small{color:#171717;opacity:.8}
+html.dark:not(.calm) .tcard .go{color:#171717}

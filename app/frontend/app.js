@@ -417,6 +417,82 @@ async function viewNew() {
   } };
 }
 
+/* ---------- Моменты: выбранные из галереи фото раскладываются по папкам ----------
+   Браузер и Telegram не дают доступа к альбомам телефона, поэтому «папки» собираем сами: по дате съёмки и месту из
+   данных снимка (EXIF), а если их нет — по дате файла. Серия в несколько дней или вдали от остальных снимков — «Путешествие»,
+   субботы и воскресенья — «Выходные», вечерние кадры — «Встреча с друзьями». Названия — подсказка, пользователь сам отмечает нужное. */
+async function exifOf(file) {
+  try {
+    if (!/jpe?g$/i.test(file.type) && !/\.jpe?g$/i.test(file.name)) return {};
+    const v = new DataView(await file.slice(0, 131072).arrayBuffer());
+    if (v.getUint16(0) !== 0xFFD8) return {};
+    let o = 2;
+    while (o < v.byteLength - 4) {
+      const mk = v.getUint16(o), len = v.getUint16(o + 2);
+      if (mk === 0xFFE1 && v.getUint32(o + 4) === 0x45786966) {
+        const t = o + 10, le = v.getUint16(t) === 0x4949, u16 = (p) => v.getUint16(p, le), u32 = (p) => v.getUint32(p, le);
+        const out = {};
+        const str = (p, n) => { let r = ''; for (let k = 0; k < n - 1; k++) r += String.fromCharCode(v.getUint8(p + k)); return r; };
+        const rat = (p) => u32(p) / (u32(p + 4) || 1);
+        const ifd = (start, cb) => { const n = u16(t + start); for (let k = 0; k < n; k++) { const e = t + start + 2 + k * 12; cb(u16(e), e); } };
+        let exifPtr = 0, gpsPtr = 0;
+        ifd(u32(t + 4), (tag, e) => { if (tag === 0x8769) exifPtr = u32(e + 8); if (tag === 0x8825) gpsPtr = u32(e + 8); if (tag === 0x0132 && !out.date) out.date = str(t + u32(e + 8), 20); });
+        if (exifPtr) ifd(exifPtr, (tag, e) => { if (tag === 0x9003) out.date = str(t + u32(e + 8), 20); });
+        if (gpsPtr) {
+          const g = {}; ifd(gpsPtr, (tag, e) => { g[tag] = e; });
+          if (g[2] && g[4]) {
+            const dms = (e) => { const p = t + u32(e + 8); return rat(p) + rat(p + 8) / 60 + rat(p + 16) / 3600; };
+            out.lat = dms(g[2]) * (String.fromCharCode(v.getUint8(g[1] + 8)) === 'S' ? -1 : 1);
+            out.lon = dms(g[4]) * (String.fromCharCode(v.getUint8(g[3] + 8)) === 'W' ? -1 : 1);
+          }
+        }
+        return out;
+      }
+      if (len < 2) break;
+      o += 2 + len;
+    }
+  } catch { /* без EXIF */ }
+  return {};
+}
+async function momentsOf(files) {
+  const items = await Promise.all(files.map(async (f) => {
+    const x = await exifOf(f);
+    let t = f.lastModified;
+    if (x.date && /^\d{4}:\d\d:\d\d \d\d:\d\d/.test(x.date)) { const [d, h] = x.date.split(' '); t = new Date(d.replace(/:/g, '-') + 'T' + h).getTime() || t; }
+    return { f, t, lat: x.lat, lon: x.lon };
+  }));
+  items.sort((a, b) => a.t - b.t);
+  const groups = []; let cur = null;
+  for (const it of items) {  // новая папка, если между снимками больше 36 часов (дни поездки идут подряд)
+    if (!cur || it.t - cur.items[cur.items.length - 1].t > 36 * 3600e3) { cur = { items: [] }; groups.push(cur); }
+    cur.items.push(it);
+  }
+  const geo = items.filter((i) => i.lat != null);
+  const home = geo.length ? { lat: geo.map((g) => g.lat).sort((a, b) => a - b)[Math.floor(geo.length / 2)], lon: geo.map((g) => g.lon).sort((a, b) => a - b)[Math.floor(geo.length / 2)] } : null;
+  const far = (g) => home && g.items.some((i) => i.lat != null && Math.hypot(i.lat - home.lat, (i.lon - home.lon) * Math.cos(home.lat * Math.PI / 180)) > 0.9);
+  const fmt = (t) => new Date(t).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  return groups.map((g) => {
+    const a = g.items[0].t, b = g.items[g.items.length - 1].t, days = Math.round((b - a) / 86400e3);
+    const d = new Date(a), wd = d.getDay(), hr = d.getHours();
+    const kind = days >= 2 || far(g) ? ['Путешествие', 'travel'] : (wd === 0 || wd === 6) ? ['Выходные', 'weekend'] : hr >= 17 ? ['Встреча с друзьями', 'friends'] : ['Один день', 'day'];
+    return { title: kind[0], icon: kind[1], when: days >= 1 ? `${fmt(a)} — ${fmt(b)}` : fmt(a), files: g.items.map((i) => i.f) };
+  }).sort((x, y) => y.files.length - x.files.length);
+}
+function momentsSheet(groups, all, upload) {
+  const urls = []; const cover = (f) => { const u = URL.createObjectURL(f); urls.push(u); return u; };
+  const ICON = { travel: '✈️', weekend: '🌤', friends: '🎉', day: '📅' };
+  sheet(`<h2>Нашёл моменты</h2><p class="muted" style="margin-top:-4px">Фото разложены по датам съёмки. Отметьте, что добавить.</p>
+    <div class="moments">${groups.map((g, k) => `<label class="moment"><input type="checkbox" data-g="${k}" checked><span class="mcov">${g.files.slice(0, 3).map((f) => `<img src="${cover(f)}" alt="">`).join('')}</span><span class="mt"><b>${ICON[g.icon]} ${g.title}</b><small>${esc(g.when)} · ${g.files.length} фото</small></span></label>`).join('')}</div>
+    <button class="btn" id="mgo">Добавить</button><button class="btn line" id="mall" style="margin-top:8px">Все фото (${all.length})</button>`, (root) => {
+    const sel = () => $$('[data-g]', root).filter((c) => c.checked).flatMap((c) => groups[+c.dataset.g].files);
+    const upd = () => { const n = sel().length; $('#mgo', root).textContent = n ? `Добавить ${n} фото` : 'Отметьте хотя бы один момент'; $('#mgo', root).disabled = !n; };
+    $$('[data-g]', root).forEach((c) => (c.onchange = upd)); upd();
+    const go = (files) => { closeSheet(true); urls.forEach((u) => URL.revokeObjectURL(u)); upload(files); };
+    $('#mgo', root).onclick = () => go(sel());
+    $('#mall', root).onclick = () => go(all);
+  });
+}
+
 /* Корзина: проекты, готовые к оформлению. Пустая корзина — понятный экран, а не переход в другой раздел. */
 async function viewCart() {
   const ps = await api('/projects');
@@ -581,8 +657,8 @@ async function stepPhotos(project) {
   };
   const dups = chk.warnings.filter((w) => w.code === 'duplicate').length;
   const bad = new Set(chk.warnings.filter((w) => w.photo_id && w.code !== 'duplicate').map((w) => w.photo_id)).size;
-  shell(`${head(n ? 'Ваши фото' : 'Добавление фотографий', { back: '/', right: n ? '<button class="pillbtn" data-act="next">Далее</button>' : '' })}
-  <p class="stepline">Шаг 1 из 3 · Фото → Макет → Оформление</p>
+  shell(`${head(n ? 'Ваши фото' : 'Добавление фотографий', { back: '/', right: n ? '<button class="pillbtn" data-act="next">Далее</button>' : '<span class="steppill">Шаг 1 из 3</span>' })}
+
   <button class="rowbtn" data-act="params">${ic(productIcon(project))}<span class="g">${esc(project.product.title)}<small>${esc(paramsLabel(project))}</small></span><span class="chg">Изменить</span>${ic('next')}</button>
   ${n ? `<div class="lead" style="margin-top:12px"><img src="${inc[0].proxy || inc[0].url}" alt="Первое фото проекта"></div>` : ''}
   <div id="up"></div>
@@ -593,12 +669,12 @@ async function stepPhotos(project) {
   ${tot ? `${exc.length ? `<h2 style="font-size:18px;margin:6px 0 8px">В книге · ${n}</h2>` : ''}<div class="grid${editMode ? ' edit' : ''}">${inc.map(tile).join('')}
     <div class="tile add"><label for="file">${ic('plus', 26)}Добавить</label></div></div>
     ${exc.length ? `<h2 style="font-size:18px;margin:18px 0 4px">Остальные · ${exc.length}</h2><p class="why" style="margin:0 0 8px">Не в книге. Файлы сохранены, вернуть можно в один тап.</p><div class="grid">${exc.map(tile).join('')}</div>` : ''}`
-    : `<div class="addempty">${ic('image', 40, 1.6)}<h2>Добавьте свои фотографии</h2><p class="muted">Выберите снимки из галереи, чтобы начать создание фотопродукции.</p>
-      <p class="why">Минимум ${min} фото · До 15 МБ на файл · <button class="linkbtn" data-act="formats">Поддерживаемые форматы</button></p></div>
-      <label class="btn" for="file" style="cursor:pointer">${ic('upload')}Добавить фотографии</label>`}
+    : `<div class="addempty"><span class="ai-ic">${ic('image', 40, 1.6)}<b>+</b></span><h2>Добавьте свои фотографии</h2><p class="muted">Выберите снимки из галереи</p>
+      <button class="hintchip" data-act="formats">${ic('info', 16)}Минимум ${min} фото · до 15 МБ</button>
+      <label class="btn" for="file" style="cursor:pointer">${ic('upload')}Добавить фотографии</label></div>`}
   <input id="file" class="hide" type="file" multiple accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif,image/webp,image/tiff,image/bmp">
   <p></p><a class="btn line" href="#/project/${project.id}/ai?mode=create">${ic('spark')}Создать фото с AI</a>
-  <div class="foot">${ic('cloud', 22)}Автоматическое сохранение</div>
+  <div class="foot">${ic('cloud', 22)}Сохраняем автоматически</div>
   ${n ? `<button class="btn" data-act="next">Продолжить с фото</button>${need ? `<p class="why">Для заказа нужно минимум ${min} фото: добавьте ещё ${need}. Макет можно посмотреть уже сейчас.</p>` : ''}` : ''}`, { active: '/projects', hasBack: true });
   /* Загрузка: у каждого фото свой статус (ждёт, загружается, загружено, ошибка), общий процент; не загрузившиеся
      из-за связи можно повторить одной кнопкой, отклонённые сервером показываем с причиной. */
@@ -636,7 +712,13 @@ async function stepPhotos(project) {
         ${state.retryUp.length ? `<button class="btn sm" data-act="retryup">Повторить загрузку (${state.retryUp.length})</button>` : ''}</div>`;
     }
   };
-  $('#file').onchange = (e) => { const files = [...e.target.files]; if (files.length) upload(files); };
+  $('#file').onchange = async (e) => {
+    const files = [...e.target.files]; if (!files.length) return;
+    if (files.length < 6) return upload(files);
+    const groups = await momentsOf(files);
+    if (groups.length < 2) return upload(files);
+    momentsSheet(groups, files, upload);
+  };
   const again = () => viewProject(project.id, 'photos');
   state.ctx = {
     next: () => go(`/project/${project.id}/edit`),
@@ -1421,10 +1503,8 @@ async function viewProfile() {
   ${op ? '<p class="muted">Вы вошли как оператор.</p>' : `<div class="menu y"><div>${ic('gift')}<span class="g">Бонусы</span><span class="chip soon">Скоро</span></div></div>
   <div class="menu"><a href="#/orders">${ic('box')}<span class="g">Мои заказы</span>${ic('next', 20)}</a><a href="#/orders?f=done">${ic('bag')}<span class="g">Мои покупки</span>${ic('next', 20)}</a><a href="#/projects">${ic('folder')}<span class="g">Мои проекты</span>${ic('next', 20)}</a><div style="color:var(--muted)">${ic('heart')}<span class="g">Избранное</span><span class="chip soon">Скоро</span></div><button data-act="feedback">${ic('chat')}<span class="g">Отзывы и вопросы</span>${ic('next', 20)}</button></div>
   ${last ? `<h2>${last.status === 'completed' ? 'Прошлая покупка' : 'Последний заказ'}</h2><div class="card row"><a href="#/order/${last.id}">${book(last.cover, last.project_title, true)}</a><div class="g"><button class="btn sm" style="width:100%" data-act="reorder">Заказать ещё</button><a class="btn sm line" style="width:100%;margin-top:8px" href="#/order/${last.id}?review=1">Оставить отзыв</a></div></div>` : ''}`}
-  <h2>Оформление</h2><div class="seg">${[['v3', 'Новое'], ['v2', 'Прошлое'], ['classic', 'Первое']].map(([v, l]) => `<button data-act="design" data-v="${v}" class="${(window.ppDesign ? window.ppDesign.get() : 'classic') === v ? 'on' : ''}">${l}</button>`).join('')}</div>
-  <label class="lb">Цвета</label><div class="seg">${[['calm', 'Спокойные'], ['yellow', 'Жёлтые']].map(([v, l]) => `<button data-act="pal" data-v="${v}" class="${(store.get('pp_pal') || 'calm') === v ? 'on' : ''}">${l}</button>`).join('')}</div>
-  <label class="lb">Советы по качеству фото</label><div class="seg">${[['1', 'Показывать'], ['0', 'Не показывать']].map(([v, l]) => `<button data-act="qtip" data-v="${v}" class="${(qtips() ? '1' : '0') === v ? 'on' : ''}">${l}</button>`).join('')}</div>
-  <label class="lb">Тема</label><div class="seg">${[['auto', 'Как в системе'], ['light', 'Светлая'], ['dark', 'Тёмная']].map(([v, l]) => `<button data-act="thm" data-v="${v}" class="${(store.get('pp_theme') || 'auto') === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+  <h2>Оформление</h2><div class="themecards">${[['auto', 'Системная'], ['light', 'Светлая'], ['dark', 'Тёмная']].map(([v, l]) => `<button class="tcard2 ${(store.get('pp_theme') || 'auto') === v ? 'on' : ''}" data-act="thm" data-v="${v}" aria-label="Тема: ${l}"><span class="tprev ${v}"><i></i><i></i></span><b>${l}</b></button>`).join('')}</div>
+  <div class="toggles"><label class="tgl"><span>Советы по качеству фото</span><input type="checkbox" data-act="qtgl" ${qtips() ? 'checked' : ''}><i aria-hidden="true"></i></label></div>
   ${V3 ? '<button class="rowbtn" data-act="onboard" style="margin-top:10px">' + ic('info') + '<span class="g">Как пользоваться приложением</span>' + ic('next', 20) + '</button>' : ''}
   <button class="rowbtn" data-act="assistant" style="margin-top:10px">${ic('chat')}<span class="g">Спросить помощника Робо<small>Заказы, цены, сроки, шаблоны</small></span>${ic('next', 20)}</button>
   ${platform.kind === 'telegram' || matchMedia('(display-mode: standalone)').matches ? '' : `<button class="rowbtn" data-act="install" style="margin-top:10px">${ic('upload')}<span class="g">Установить на телефон<small>Как приложение, без адресной строки</small></span>${ic('next', 20)}</button>`}
@@ -1509,6 +1589,7 @@ const ACTS = {
   assistant: () => openAssistant(),
   qoff: () => { store.set('pp_qtips', '0'); toast('Советы скрыты. Включить: Профиль → Советы по качеству'); route(); },
   qtip: (el) => { store.set('pp_qtips', el.dataset.v); viewProfile(); },
+  qtgl: (el) => { store.set('pp_qtips', el.checked ? '1' : '0'); toast(el.checked ? 'Советы включены' : 'Советы выключены'); },
   pal: (el) => { store.set('pp_pal', el.dataset.v); document.documentElement.classList.toggle('calm', el.dataset.v === 'calm'); viewProfile(); },
   thm: (el) => { store.set('pp_theme', el.dataset.v); const t = el.dataset.v; const dark = t === 'dark' || (t === 'auto' && ((tg && tg.colorScheme === 'dark') || matchMedia('(prefers-color-scheme: dark)').matches)); document.documentElement.classList.toggle('dark', dark); platform.paint(); viewProfile(); },
   design: (el) => { if (window.ppDesign && window.ppDesign.get() !== el.dataset.v) window.ppDesign.set(el.dataset.v); },

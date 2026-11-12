@@ -403,3 +403,41 @@ h2.sec{font-size:18px;margin:16px 0 8px}
 .mini #cmp.on{background:var(--ink);color:var(--canvas)}
 #stage{-webkit-user-drag:none;pointer-events:auto}
 .stage img{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+
+/* ---------- вкладка 11: финальные правки ---------- */
+/* «+»: синяя подсветка вместо жёлтой */
+.nav a.plus i,html.v2 .nav a.plus i{box-shadow:0 6px 16px -4px rgba(36,110,190,.55)}
+html.dark .nav a.plus i{box-shadow:0 4px 16px -2px rgba(80,150,230,.55)}
+/* экран фото: один блок загрузки по макету */
+.steppill{font-size:13px;font-weight:700;color:var(--muted);background:var(--sub);border-radius:99px;padding:6px 12px;white-space:nowrap}
+.addempty{border:2px dashed var(--line);border-radius:20px;padding:22px 16px 16px;margin:6px 0 12px;background:var(--canvas)}
+.addempty .ai-ic{position:relative;color:var(--muted)}.addempty .ai-ic b{position:absolute;right:-8px;bottom:-4px;width:20px;height:20px;border-radius:50%;background:var(--y);color:#171717;font-size:15px;line-height:20px}
+.addempty .btn{margin-top:10px}
+.hintchip{display:inline-flex;align-items:center;gap:6px;border:0;background:var(--sub);color:var(--muted);border-radius:99px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;min-height:32px}
+/* профиль: настройки как в Telegram */
+.themecards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tcard2{border:2px solid var(--line);background:var(--canvas);border-radius:16px;padding:8px;display:flex;flex-direction:column;gap:6px;align-items:center;font:inherit;color:inherit}
+.tcard2.on{border-color:var(--y)}
+.tcard2 b{font-size:13.5px}
+.tprev{width:100%;aspect-ratio:1.5;border-radius:10px;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:8px}
+.tprev i{display:block;height:9px;border-radius:6px;width:62%}.tprev i:last-child{align-self:flex-end;width:48%}
+.tprev.light{background:#f4f4f1}.tprev.light i{background:#fff}.tprev.light i:last-child{background:#ffda24}
+.tprev.dark{background:#1b1e22}.tprev.dark i{background:#30343a}.tprev.dark i:last-child{background:#ffda24}
+.tprev.auto{background:linear-gradient(90deg,#f4f4f1 50%,#1b1e22 50%)}.tprev.auto i{background:#8a8f96}.tprev.auto i:last-child{background:#ffda24}
+.toggles{margin-top:12px;border:1px solid var(--line);border-radius:16px;background:var(--canvas)}
+.tgl{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;min-height:52px;font-weight:700;cursor:pointer}
+.tgl input{position:absolute;opacity:0;width:1px;height:1px}
+.tgl i{flex:none;width:50px;height:30px;border-radius:99px;background:#c9c9c4;position:relative;transition:background .2s}
+.tgl i::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.tgl input:checked+i{background:#34c759}.tgl input:checked+i::after{transform:translateX(20px)}
+.tgl input:focus-visible+i{outline:3px solid var(--y);outline-offset:2px}
+html.dark .tcard2,html.dark .toggles{background:#1f2226;border-color:#3a3f45}
+html.dark .tcard2.on{border-color:#ffda24}
+/* моменты */
+.moments{display:flex;flex-direction:column;gap:10px;margin:10px 0 14px;max-height:52vh;overflow:auto}
+.moment{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:16px;padding:10px;cursor:pointer}
+.moment input{width:22px;height:22px;flex:none;accent-color:#171717}
+.mcov{display:flex;flex:none}.mcov img{width:44px;height:44px;object-fit:cover;border-radius:10px;border:2px solid var(--canvas);margin-left:-14px}.mcov img:first-child{margin-left:0}
+.mt{display:flex;flex-direction:column;gap:2px;min-width:0}.mt small{color:var(--muted)}
+html.dark .moment{border-color:#3a3f45}
+.hd:has(.steppill) h1{font-size:19px;letter-spacing:-.2px}

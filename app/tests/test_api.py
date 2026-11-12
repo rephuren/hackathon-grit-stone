@@ -707,3 +707,30 @@ def test_smart_story_pin_exclude_return(client, anna):
     assert client.get(f"/api/projects/{pid}/check", headers=anna).json()["photos"] == 12
     # чужой проект и несуществующее фото недоступны
     assert client.patch(f"/api/projects/{pid}/photos/nope/flags", json={"pinned": True}, headers=anna).status_code == 404
+
+
+def test_templates_catalog_from_api(client):
+    ts = client.get("/api/templates").json()
+    ids = {t["id"] for t in ts}
+    assert {"wedding", "graduation", "family-calendar"} <= ids
+    for t in ts:
+        assert t["price_from"] > 0 and t["currency"] == "BYN" and t["product_title"]
+        assert t["theme"] in ("classic", "kids", "travel", "party", "soft")
+
+
+def test_assistant_demo_answers_with_user_context(client, anna, monkeypatch):
+    monkeypatch.delenv("MARY_API_URL", raising=False)
+    r = client.post("/api/assistant", json={"message": "Сколько стоит календарь?"}, headers=anna)
+    assert r.status_code == 200 and r.json()["provider"] == "demo"
+    assert "календар" in r.json()["reply"].lower()
+    r = client.post("/api/assistant", json={"message": "Где мой заказ?"}, headers=anna).json()
+    assert r["reply"] and all(a.get("href", "#/").startswith("#/") for a in r["actions"])
+    assert client.post("/api/assistant", json={"message": ""}, headers=anna).status_code == 422
+    assert client.post("/api/assistant", json={"message": "привет"}).status_code == 401
+
+
+def test_assistant_falls_back_when_mary_unreachable(client, anna, monkeypatch):
+    monkeypatch.setenv("MARY_API_URL", "http://127.0.0.1:9/none")
+    monkeypatch.setenv("MARY_API_KEY", "test-key")
+    r = client.post("/api/assistant", json={"message": "Сколько нужно фото?"}, headers=anna).json()
+    assert r["provider"] == "demo-fallback" and "фото" in r["reply"]

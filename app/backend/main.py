@@ -24,6 +24,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from PIL import Image
 from pydantic import BaseModel, Field
 
+from . import assistant as AS
 from . import catalog as C
 from . import db as D
 from . import imagegen as G
@@ -352,6 +353,49 @@ def get_product(c, pid: str) -> dict:
 def products():
     with D.db() as c:
         return [json.loads(r["data"]) for r in c.execute("SELECT data FROM products ORDER BY rowid")]
+
+
+def _price_from(p: dict) -> int:
+    return min(sz["base"] for sz in p["options"]["sizes"])
+
+
+@api.get("/templates")
+def templates():
+    """Шаблоны по поводам (mock API): продукт, оформление, цена «от». Карточки каталога строятся из этого ответа."""
+    with D.db() as c:
+        prods = {json.loads(r["data"])["id"]: json.loads(r["data"]) for r in c.execute("SELECT data FROM products")}
+    out = []
+    for t in C.TEMPLATES:
+        p = prods.get(t["product_id"])
+        if p:
+            out.append({**t, "product_title": p["title"], "kind": p["kind"], "price_from": _price_from(p),
+                        "currency": "BYN", "min_photos": p["min_photos"], "production_days": p["options"].get("production_days")})
+    return out
+
+
+class AskIn(BaseModel):
+    message: str = Field(min_length=1, max_length=500)
+
+
+@api.post("/assistant")
+def assistant(body: AskIn, user: dict = Depends(current_user)):
+    """ИИ-помощник: демо-провайдер по умолчанию, Mary — при наличии MARY_API_URL/MARY_API_KEY (см. backend/assistant.py)."""
+    with D.db() as c:
+        prods = [json.loads(r["data"]) for r in c.execute("SELECT data FROM products ORDER BY rowid")]
+        byid = {p["id"]: p for p in prods}
+        draft = None
+        for r in c.execute("SELECT * FROM projects WHERE user_id=? AND status='draft' ORDER BY updated_at DESC LIMIT 1", (user["id"],)):
+            p = byid.get(r["product_id"])
+            if p:
+                draft = {"id": r["id"], "title": r["title"], "product": p["title"], "min_photos": p["min_photos"],
+                         "photos": len(photos_of(c, r["id"], True))}
+        orders = [{"id": r["id"], "number": f"PP-{r['id']:06d}", "status": r["status"], "total": r["total_kop"]}
+                  for r in c.execute("SELECT id, status, total_kop FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 3", (user["id"],))]
+        ctx = {"draft": draft, "orders": orders,
+               "products": [{"title": p["title"], "from": _price_from(p)} for p in prods]}
+        res = AS.ask(body.message, ctx)
+        D.audit(c, user, "assistant", "assistant", "ok", f"provider={res['provider']} len={len(body.message)}")
+    return res
 
 
 @api.get("/pickup-points")

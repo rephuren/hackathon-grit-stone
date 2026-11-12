@@ -55,6 +55,23 @@ PRODUCTS = [
          "production_days": 2}},
 ]
 
+# Готовые шаблоны (mock API): поводы, как в каталоге picPac. Шаблон = продукт + оформление страниц + рекомендованный объём.
+# Реальные шаблоны сайта picpac.by подключаются заменой этого списка на ответ их API (доступа пока нет).
+TEMPLATES = [
+    {"id": "wedding", "title": "Свадебная фотокнига", "occasion": "Свадьба", "product_id": "premium", "theme": "soft",
+     "descr": "Нежные цвета, круглые рамки, крупные кадры на разворот", "photos_hint": "30–60 фото"},
+    {"id": "graduation", "title": "Выпускной альбом", "occasion": "Выпускной", "product_id": "graduation", "theme": "classic",
+     "descr": "Строгая классика: портреты класса и общие кадры", "photos_hint": "20–40 фото"},
+    {"id": "kids", "title": "Детский альбом", "occasion": "Дети", "product_id": "classic", "theme": "kids",
+     "descr": "Звёздочки, облака и мягкие рамки для первых лет", "photos_hint": "20–50 фото"},
+    {"id": "travel", "title": "Книга путешествий", "occasion": "Путешествие", "product_id": "classic", "theme": "travel",
+     "descr": "Фото-карточки на крафтовом фоне, как дорожный дневник", "photos_hint": "20–60 фото"},
+    {"id": "party", "title": "Праздник и день рождения", "occasion": "Праздник", "product_id": "lite", "theme": "party",
+     "descr": "Яркий коллаж с конфетти и жёлтым фоном", "photos_hint": "10–30 фото"},
+    {"id": "family-calendar", "title": "Семейный календарь", "occasion": "Подарок", "product_id": "calendar", "theme": "soft",
+     "descr": "12 месяцев с семейными фото и сеткой дат", "photos_hint": "12 фото"},
+]
+
 DELIVERY = {
     "pvz": {"label": "Пункт выдачи", "cost": 490},
     "belpost": {"label": "Белпочта", "cost": 590, "free_from": 15000},

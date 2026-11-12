@@ -295,3 +295,8 @@ html{touch-action:manipulation}[data-act],[data-i],[data-tab],[data-f],[data-opt
 /* три вкладки типа продукта помещаются на 360-390 px */
 @media(max-width:420px){.seg>*{flex:1 1 auto;padding:8px 6px;gap:5px;font-size:14px}.seg svg.ic{width:16px;height:16px}}
 
+
+/* финальный проход: цели нажатия ≥44 px и читаемые подписи */
+.nav a{font-size:12px}
+.tip .bb button{position:relative}.tip .bb button::after{content:'';position:absolute;inset:-8px}
+.statusrow a,[data-act=toggleedit]{display:inline-flex;align-items:center;min-height:44px}

@@ -1,0 +1,7 @@
+{
+  "appId": "by.picpac.hackathon",
+  "appName": "picPac",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "ios": { "contentInset": "never" }
+}

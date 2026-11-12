@@ -1,0 +1,19 @@
+{
+  "name": "picpac-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Нативные оболочки picPac (iOS, Android) на Capacitor. Код приложения берётся из ../app/frontend.",
+  "scripts": {
+    "sync-web": "sh ./sync.sh",
+    "add:ios": "npx cap add ios",
+    "add:android": "npx cap add android",
+    "open:ios": "npx cap open ios",
+    "open:android": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/cli": "^8.6.0",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/ios": "^8.6.0"
+  }
+}

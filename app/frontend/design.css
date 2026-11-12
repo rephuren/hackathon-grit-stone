@@ -1,0 +1,166 @@
+/* picPac «Момент» — слой оформления v2: анимации и визуальные детали поверх styles.css.
+   Всё ниже действует только при классе html.v2. Откат для всех: в config.js window.PICPAC_DESIGN = 'classic';
+   для себя: Профиль → «Оформление» → «Классическое» (или ?design=classic в адресе). Палитра прежняя. */
+
+/* ---------- общие кривые и длительности ---------- */
+html.v2{--spring:cubic-bezier(.34,1.56,.64,1);--out:cubic-bezier(.22,1,.36,1);--dur:.5s}
+
+/* ---------- появление экрана: элементы въезжают по очереди ---------- */
+html.v2 main.enter>*{animation:v2-up var(--dur) var(--out) both;animation-delay:calc(var(--i,0) * 55ms)}
+html.v2 main.enter .stack>*{animation:v2-up .45s var(--out) both;animation-delay:calc(120ms + var(--j,0) * 60ms)}
+@keyframes v2-up{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes v2-fade{from{opacity:0}to{opacity:1}}
+@keyframes v2-pop{0%{opacity:0;transform:scale(.6)}70%{opacity:1;transform:scale(1.06)}100%{transform:scale(1)}}
+
+/* ---------- главная: живая заставка ---------- */
+html.v2 .hero{background:radial-gradient(120% 90% at 85% 10%,#fff3b0 0%,rgba(255,243,176,0) 55%),
+  radial-gradient(90% 80% at 10% 100%,#ffcf1f 0%,rgba(255,207,31,0) 60%),var(--y);isolation:isolate}
+html.v2 .hero::before,html.v2 .hero::after{content:"";position:absolute;border-radius:50%;filter:blur(2px);z-index:-1;pointer-events:none}
+html.v2 .hero::before{width:220px;height:220px;right:-60px;top:-70px;background:radial-gradient(circle,rgba(255,255,255,.55),rgba(255,255,255,0) 70%);animation:v2-drift 9s ease-in-out infinite alternate}
+html.v2 .hero::after{width:160px;height:160px;left:-50px;bottom:-40px;background:radial-gradient(circle,rgba(255,170,0,.35),rgba(255,170,0,0) 70%);animation:v2-drift 11s ease-in-out infinite alternate-reverse}
+@keyframes v2-drift{to{transform:translate(-26px,18px) scale(1.12)}}
+html.v2 .hero .wm{animation:v2-fade .6s var(--out) both}
+html.v2 .hero h1 .ln{display:block;overflow:hidden}
+html.v2 .hero h1 .ln>span{display:inline-block;animation:v2-rise .7s var(--out) both;animation-delay:calc(120ms + var(--l,0) * 110ms)}
+@keyframes v2-rise{from{transform:translateY(105%);opacity:0}to{transform:none;opacity:1}}
+/* фото-карточки веером за маскотами: «отпечатки» */
+html.v2 .hero .v2-prints{position:absolute;right:30px;bottom:96px;width:104px;height:84px;z-index:0;pointer-events:none}
+html.v2 .hero h1,html.v2 .hero .wm{position:relative;z-index:2}
+html.v2 .hero .v2-prints i{position:absolute;inset:0;border-radius:10px;background:#fff;padding:5px 5px 16px;box-shadow:0 8px 18px rgba(23,23,23,.14);
+  transform-origin:50% 100%;animation:v2-fan .9s var(--spring) both}
+html.v2 .hero .v2-prints i::before{content:"";display:block;height:100%;border-radius:6px;background:var(--g)}
+html.v2 .hero .v2-prints i:nth-child(1){--g:linear-gradient(160deg,#9fd3f7,#ffd27a 70%,#ff9f6b);--r:-14deg;animation-delay:.25s}
+html.v2 .hero .v2-prints i:nth-child(2){--g:linear-gradient(200deg,#b9e6c9,#5fb3a0);--r:9deg;animation-delay:.35s}
+html.v2 .hero .v2-prints i:nth-child(3){--g:linear-gradient(180deg,#ffd6e0,#c9a7f5);--r:-2deg;animation-delay:.45s}
+@keyframes v2-fan{from{opacity:0;transform:translateY(30px) rotate(0)}to{opacity:1;transform:rotate(var(--r))}}
+html.v2 .hero .m-robot,html.v2 .hero .m-cat{z-index:1;transform-origin:50% 100%}
+/* объём персонажей: мягкая тень по контуру и «пятно» тени под ногами */
+html.v2 .hero .m-robot,html.v2 .hero .m-cat,html.v2 .tip img,html.v2 .hello img{filter:drop-shadow(0 10px 12px rgba(120,80,0,.28)) drop-shadow(0 2px 2px rgba(0,0,0,.08))}
+html.v2 .hero .v2-ground{position:absolute;bottom:26px;height:14px;border-radius:50%;background:radial-gradient(closest-side,rgba(120,80,0,.32),rgba(120,80,0,0));z-index:0;pointer-events:none;animation:v2-shadow 3.6s ease-in-out 1s infinite}
+@keyframes v2-shadow{0%,100%{transform:scaleX(1);opacity:.9}50%{transform:scaleX(.82);opacity:.6}}
+html.v2 .hello img{transform-origin:50% 100%;animation:v2-in .7s var(--spring) both,v2-sway 4.2s ease-in-out 1s infinite}
+html.v2 .hero .m-robot{animation:v2-in .8s var(--spring) .2s both,v2-bob 3.6s ease-in-out 1s infinite}
+html.v2 .hero .m-cat{animation:v2-in .8s var(--spring) .35s both,v2-sway 4.2s ease-in-out 1.2s infinite}
+@keyframes v2-in{from{opacity:0;transform:translateY(40px) scale(.8)}to{opacity:1;transform:none}}
+@keyframes v2-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes v2-sway{0%,100%{transform:rotate(0)}30%{transform:rotate(-4deg)}60%{transform:rotate(3deg)}}
+/* искорки */
+html.v2 .hero .v2-spark{position:absolute;width:14px;height:14px;z-index:2;pointer-events:none;opacity:0;animation:v2-twinkle 3.2s ease-in-out infinite}
+html.v2 .hero .v2-spark::before{content:"";position:absolute;inset:0;background:#fff;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%)}
+@keyframes v2-twinkle{0%,100%{opacity:0;transform:scale(.4) rotate(0)}40%{opacity:1;transform:scale(1) rotate(45deg)}70%{opacity:0;transform:scale(.6) rotate(90deg)}}
+html.v2 .topsheet{box-shadow:0 -10px 30px rgba(23,23,23,.06)}
+
+/* ---------- кнопки: пружинное нажатие и блик ---------- */
+html.v2 .btn,html.v2 .pillbtn,html.v2 .ib,html.v2 .seg>*{transition:transform .18s var(--spring),box-shadow .2s,background-color .2s}
+html.v2 .btn{position:relative;overflow:hidden;box-shadow:0 1px 0 rgba(0,0,0,.04),0 6px 16px -10px rgba(23,23,23,.35)}
+html.v2 .btn:not(:disabled):active,html.v2 .pillbtn:active,html.v2 .ib:active,html.v2 .seg>*:active{transform:scale(.96)}
+html.v2 .btn:not(.line):not(.grey):not(.danger):not(:disabled)::after{content:"";position:absolute;inset:0 auto 0 -60%;width:45%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-20deg);animation:v2-shine 5.5s ease-in-out 1.5s infinite}
+@keyframes v2-shine{0%,72%{left:-60%}100%{left:130%}}
+html.v2 .btn .v2-ripple{position:absolute;border-radius:50%;background:rgba(23,23,23,.14);transform:scale(0);animation:v2-ripple .55s ease-out forwards;pointer-events:none}
+@keyframes v2-ripple{to{transform:scale(4);opacity:0}}
+
+/* ---------- карточки ---------- */
+html.v2 .card{transition:transform .22s var(--out),box-shadow .22s,border-color .2s}
+html.v2 a.card:hover,html.v2 button.card:hover{transform:translateY(-2px);box-shadow:0 10px 24px -14px rgba(23,23,23,.35)}
+html.v2 a.card:active,html.v2 button.card:active{transform:scale(.985)}
+html.v2 .book i{transition:transform .35s var(--spring)}
+html.v2 .card:hover .book i{transform:rotateY(32deg) rotateZ(-6deg)}
+
+/* ---------- картинки: мерцание, пока грузятся ---------- */
+html.v2 img.v2-wait{background:linear-gradient(100deg,#efefea 20%,#f8f8f4 40%,#efefea 60%);background-size:220% 100%;animation:v2-shimmer 1.2s linear infinite}
+html.v2 img.v2-ok{animation:v2-fade .35s ease both}
+@keyframes v2-shimmer{to{background-position:-120% 0}}
+html.v2 .boot{animation:v2-fade .4s both}
+
+/* ---------- нижнее меню ---------- */
+html.v2 .nav{backdrop-filter:saturate(1.4) blur(10px);background:rgba(255,255,255,.92)}
+html.v2 .nav a svg{transition:transform .25s var(--spring)}
+html.v2 .nav a.on svg{transform:translateY(-2px) scale(1.08)}
+html.v2 .nav a.on span{animation:v2-pop .4s var(--spring) both}
+html.v2 .nav a.plus i{box-shadow:0 8px 18px -6px rgba(239,196,22,.9);transition:transform .25s var(--spring)}
+html.v2 .nav a.plus:active i{transform:scale(.9) rotate(90deg)}
+
+/* ---------- подсказки маскотов ---------- */
+html.v2 .tip img{transform-origin:50% 100%;animation:v2-in .6s var(--spring) both,v2-bob 3.8s ease-in-out .8s infinite}
+html.v2 .tip .bb{animation:v2-bubble .5s var(--spring) .15s both;transform-origin:0 100%}
+@keyframes v2-bubble{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+
+/* ---------- окна, уведомления, метки ---------- */
+html.v2 .sheet-bg{animation:v2-fade .25s ease both}
+html.v2 .sheet{animation:v2-sheet .45s var(--out) both}
+@keyframes v2-sheet{from{transform:translateY(100%)}to{transform:none}}
+html.v2 #toast{transition:opacity .25s,transform .45s var(--spring)}
+html.v2 #toast.show{transform:translate(-50%,0) scale(1)}
+html.v2 .chip{animation:v2-pop .4s var(--spring) both;animation-delay:calc(200ms + var(--j,0) * 60ms)}
+html.v2 .note{animation:v2-up .4s var(--out) both}
+html.v2 .bar>*{transition:width .6s var(--out)}
+
+/* ---------- успех заказа ---------- */
+html.v2 .v2-confetti{position:fixed;inset:0;pointer-events:none;z-index:80}
+
+/* ---------- кто просит меньше движения — получает статичный интерфейс ---------- */
+@media (prefers-reduced-motion:reduce){
+  html.v2 *,html.v2 *::before,html.v2 *::after{animation:none!important;transition:none!important}
+}
+
+/* =====================================================================================================
+   Оформление v3 («по правкам команды»): чище, меньше жёлтого, Manrope, компактные карточки, новые персонажи.
+   Включено по умолчанию. Откат: Профиль → «Оформление» → «Прошлое»/«Первое», ?design=v2, либо config.js. */
+html.v3{--r:22px}
+html.v3 body{font-family:Manrope,-apple-system,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.45}
+html.v3 h1{font-weight:800}
+html.v3 h2{font-size:22px;font-weight:700}
+html.v3 h3{font-size:18px;font-weight:600}
+html.v3 .muted,html.v3 small{font-size:13.5px;font-weight:500}
+html.v3 .btn{font-weight:700;font-size:17px;min-height:56px;border-radius:18px;box-shadow:none}
+html.v3 .btn.sm{min-height:44px;font-size:15px;border-radius:16px}
+html.v3 .btn:not(.line):not(.grey):not(.danger):not(:disabled)::after{display:none}
+html.v3 .rowbtn{border-radius:18px;min-height:56px;font-weight:600;background:#fff}
+html.v3 .card{box-shadow:0 8px 24px -18px rgba(23,23,23,.35)}
+html.v3 .stack{gap:14px}
+
+/* заставка: логотип, заголовок в две строки, персонажи целиком (их не перекрывает белый блок) */
+html.v3 .hero.v3h{padding:18px 20px 0;min-height:222px;overflow:visible;background:radial-gradient(120% 90% at 90% 0,#fff0a6 0,rgba(255,240,166,0) 55%),var(--y)}
+html.v3 .hero.v3h::before,html.v3 .hero.v3h::after{display:none}
+html.v3 .hero.v3h .logo{display:block;height:40px;width:auto;margin:0 0 12px -4px}
+html.v3 .hero.v3h h1{font-size:27px;line-height:1.14;margin:0;max-width:58%;letter-spacing:-.4px;position:relative;z-index:2}
+html.v3 .hero.v3h .m-robot{position:absolute;right:2px;bottom:27px;width:172px;z-index:2;filter:none;animation:v2-in .7s var(--spring) .15s both,v2-bob 4s ease-in-out 1s infinite}
+html.v3 .topsheet{margin-top:-28px;padding-top:26px;position:relative;z-index:3;box-shadow:0 -10px 24px -14px rgba(23,23,23,.25)}
+html.v3 .tip img,html.v3 .hello img{filter:none}
+
+/* главная кнопка с подписью */
+html.v3 .btn.big{justify-content:space-between;text-align:left;padding:10px 18px}
+html.v3 .btn.big .g{display:block}
+html.v3 .btn.big small{display:block;font-weight:500;font-size:13.5px;opacity:.75;margin-top:1px}
+
+/* «Продолжить проект»: компактная карточка со статусом и прогрессом */
+html.v3 .card.cont{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:22px;background:#fff;border:1px solid var(--line)}
+html.v3 .card.cont .book{width:64px;height:54px}
+html.v3 .card.cont .g{flex:1;min-width:0}
+html.v3 .card.cont .ct{font-size:17px;font-weight:700;line-height:1.2}
+html.v3 .card.cont .muted{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html.v3 .card.cont .bar{margin:8px 0 6px;height:7px}
+html.v3 .card.cont .left{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--muted)}
+html.v3 .card.cont .left .chip{font-size:12px;padding:2px 9px}
+html.v3 .rowbtn.order{min-height:60px;background:var(--y-soft)}
+html.v3 .rowbtn.order .oi{flex:none;width:40px;height:40px;border-radius:50%;background:#fff;display:grid;place-items:center}
+
+/* знакомство с приложением: полноэкранные шаги с Робо */
+.onb{position:fixed;inset:0;z-index:90;max-width:480px;margin:0 auto;display:flex;flex-direction:column;background:linear-gradient(180deg,#ffe65a 0,#ffda24 60%,#ffcf1f 100%);animation:v2-fade .3s both}
+.onb-top{display:flex;justify-content:flex-end;padding:calc(12px + env(safe-area-inset-top)) 16px 0}
+.onb-skip{border:0;background:rgba(255,255,255,.55);font-weight:700;font-size:15px;padding:10px 16px;border-radius:99px;min-height:44px}
+.onb-card{background:#fff;border-radius:28px 28px 0 0;padding:24px 22px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -14px 30px -18px rgba(0,0,0,.35)}
+.onb-card h2{margin:0 0 6px;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-.5px}
+.onb-card p{margin:0 0 16px;color:var(--muted);font-size:16px;min-height:72px}
+.onb-dots{display:flex;gap:6px;margin-bottom:16px}
+.onb-dots i{width:8px;height:8px;border-radius:99px;background:#e4e4df;transition:width .3s var(--spring),background .2s}
+.onb-dots i.on{width:26px;background:var(--ink)}
+
+html.v3 .tip img{width:84px;border-radius:0}
+html.v3 .hello img{width:96px;right:-4px;bottom:-12px}
+html.v3 
+/* знакомство: картинка всегда занимает одну и ту же рамку и прижата к низу, поэтому позы разной высоты встают ровно */
+.onb-art{flex:1;min-height:0;display:flex;justify-content:center;align-items:stretch;padding:8px 20px 0}
+.onb-art img{display:block;width:100%;max-width:360px;height:100%;object-fit:contain;object-position:50% 100%;transform-origin:50% 100%;animation:onb-in .45s var(--out) both}
+@keyframes onb-in{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}

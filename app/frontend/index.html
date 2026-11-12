@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffda24">
+  <title>picPac — от фото до фотокниги</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="picPac">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="vendor/leaflet.min.css">
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="design.css">
+</head>
+<body>
+  <div id="app"><p class="boot">Загрузка…</p></div>
+  <script>
+    /* Если приложение не стартовало за 12 секунд (слабая сеть, ошибка скрипта), показываем причину и кнопку «Повторить». */
+    /* Диагностика для телефона (включается: localStorage pp_debug=1 или #debug в адресе): внизу строка «что нажали / сколько запросов ждёт ответа», сверху плашка с ошибками. */
+    var DEBUG = false; try { DEBUG = localStorage.getItem('pp_debug') === '1' || /[?&#]debug\b/.test(location.href); } catch (e) {}
+    if (DEBUG) (function () {
+      var pending = 0, last = 'нет нажатий', t0 = 0, bar;
+      function draw(extra) {
+        if (!document.body) return;
+        if (!bar) { bar = document.createElement('div'); bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:98;background:#171717;color:#ffda24;font:11px/1.3 monospace;padding:3px 8px;pointer-events:none;opacity:.9'; document.body.appendChild(bar); }
+        bar.textContent = 'запросов в ожидании: ' + pending + ' | ' + last + (extra || '');
+      }
+      var f = window.fetch;
+      window.fetch = function () {
+        pending++; draw(); var u = String(arguments[0]).split('?')[0].slice(-26), st = Date.now();
+        return f.apply(this, arguments).then(function (r) { pending--; last = u + ' → ' + r.status + ' ' + (Date.now() - st) + 'мс'; draw(); return r; }, function (e) { pending--; last = u + ' ОШИБКА ' + e; draw(); throw e; });
+      };
+      document.addEventListener('click', function (e) {
+        var el = e.target, a = el.closest && el.closest('[data-act],a,button,label');
+        last = 'нажато: ' + (el.tagName || '') + '.' + String(el.className && el.className.baseVal !== undefined ? el.className.baseVal : el.className).slice(0, 18) + (a ? ' → ' + a.tagName + (a.dataset && a.dataset.act ? ' act=' + a.dataset.act : a.getAttribute('href') ? ' ' + a.getAttribute('href') : '') + (a.disabled ? ' ОТКЛЮЧЕНА' : '') : ' (не кнопка)'); draw();
+      }, true);
+      document.addEventListener('DOMContentLoaded', function () { draw(); });
+    })();
+    (function () {
+      var errs = [];
+      function banner(t) {  // красная плашка с текстом ошибки: на телефоне нет консоли, а так её видно и можно сфотографировать
+        errs.push(t);
+        if (!DEBUG) return;  // красная плашка только в режиме отладки (localStorage pp_debug=1)
+        var d = document.getElementById('errbar');
+        if (!d) { d = document.createElement('div'); d.id = 'errbar'; d.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99;background:#b42318;color:#fff;font:12px/1.3 monospace;padding:6px 10px;word-break:break-all;max-height:30vh;overflow:auto'; d.onclick = function () { d.remove(); }; document.body.appendChild(d); }
+        d.textContent = errs.slice(-3).join(' | ');
+      }
+      window.addEventListener('error', function (e) { banner((e.message || 'ошибка') + (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : '')); });
+      window.addEventListener('unhandledrejection', function (e) { banner('promise: ' + (e.reason && e.reason.message || e.reason)); });
+      setTimeout(function () {
+        var b = document.querySelector('#app .boot');
+        if (!b) return;
+        b.innerHTML = 'Не удалось загрузиться. Проверьте интернет и повторите.<br><small style="color:#777">' + (errs.join('<br>') || 'ответа от сервера нет') + '</small><br><button onclick="location.reload()" style="margin-top:14px;padding:12px 20px;font-size:16px">Повторить</button>';
+      }, 12000);
+    })();
+  </script>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <!-- Leaflet лежит локально (vendor/), чтобы приложение не зависело от внешних CDN -->
+  <script src="vendor/leaflet.min.js"></script>
+  <script src="config.js"></script>
+  <script src="motion.js"></script>
+  <script src="app.js"></script>
+  <script>if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(function () {});</script>
+</body>
+</html>

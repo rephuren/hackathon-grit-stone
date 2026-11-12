@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 300" role="img" aria-label="Робот-помощник">
+  <defs>
+    <radialGradient id="rh" cx=".34" cy=".2" r=".95"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#f1f4f8"/><stop offset=".8" stop-color="#c9d2de"/><stop offset="1" stop-color="#9fabbb"/></radialGradient>
+    <linearGradient id="rv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3f4b"/><stop offset=".5" stop-color="#14161c"/><stop offset="1" stop-color="#050608"/></linearGradient>
+    <radialGradient id="re" cx=".5" cy=".45" r=".6"><stop offset="0" stop-color="#fffbe0"/><stop offset=".35" stop-color="#ffe45c"/><stop offset="1" stop-color="#ffb020"/></radialGradient>
+    <linearGradient id="rc" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#555b68"/><stop offset=".45" stop-color="#2a2d36"/><stop offset="1" stop-color="#14161b"/></linearGradient>
+    <linearGradient id="rr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc25c"/><stop offset="1" stop-color="#ee7a12"/></linearGradient>
+    <linearGradient id="rs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe45a"/><stop offset=".6" stop-color="#ffd024"/><stop offset="1" stop-color="#f0b000"/></linearGradient>
+    <linearGradient id="rn" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6b7280"/><stop offset=".5" stop-color="#9aa3b0"/><stop offset="1" stop-color="#4b5160"/></linearGradient>
+    <filter id="rg" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5"/></filter>
+    <filter id="rb" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="2.2"/></filter>
+    <filter id="rd" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#6b4a00" flood-opacity=".32"/></filter>
+  </defs>
+  <g filter="url(#rd)">
+    <!-- шея -->
+    <path d="M104 190h52l6 40h-64z" fill="url(#rn)"/>
+    <path d="M104 190h52l1 9c-17 8-37 8-54 0z" fill="#2a2d36" opacity=".55"/>
+    <!-- плечи и шарф -->
+    <path d="M12 300c-2-52 36-82 92-90l52 0c56 8 94 38 92 90z" fill="url(#rs)" stroke="#e0a000" stroke-width="2.5"/>
+    <path d="M44 232c18-14 44-20 62-20 14 10 34 10 48 0 18 0 44 6 62 20-8 12-26 20-50 24-24 6-50 6-72 0-24-4-42-12-50-24z" fill="#ffe874" opacity=".55"/>
+    <g fill="none" stroke="#d99a00" stroke-width="3" stroke-linecap="round" opacity=".55">
+      <path d="M52 262c30 10 70 12 104 8"/><path d="M86 214c-4 26-2 50 6 82"/><path d="M174 214c6 26 6 52-2 82"/><path d="M30 288c40 6 120 8 200 0"/>
+    </g>
+    <path d="M12 300c-2-52 36-82 92-90" fill="none" stroke="#fff6a8" stroke-width="3" opacity=".65"/>
+    <!-- наушники -->
+    <g>
+      <rect x="10" y="82" width="42" height="68" rx="20" fill="url(#rc)"/>
+      <rect x="10" y="82" width="42" height="68" rx="20" fill="none" stroke="url(#rr)" stroke-width="6"/>
+      <rect x="208" y="82" width="42" height="68" rx="20" fill="url(#rc)"/>
+      <rect x="208" y="82" width="42" height="68" rx="20" fill="none" stroke="url(#rr)" stroke-width="6"/>
+      <path d="M22 98c2-6 8-8 12-6" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <!-- шлем -->
+    <path d="M130 8c62 0 94 44 94 98 0 52-34 88-94 88s-94-36-94-88C36 52 68 8 130 8z" fill="url(#rh)"/>
+    <path d="M130 8c62 0 94 44 94 98 0 52-34 88-94 88s-94-36-94-88C36 52 68 8 130 8z" fill="none" stroke="#8d99aa" stroke-opacity=".55" stroke-width="2"/>
+    <ellipse cx="96" cy="34" rx="34" ry="14" fill="#fff" opacity=".85" filter="url(#rb)" transform="rotate(-18 96 34)"/>
+    <!-- забрало -->
+    <path d="M56 92c0-22 24-32 74-32s74 10 74 32v26c0 22-26 34-74 34s-74-12-74-34z" fill="url(#rv)" stroke="#23262e" stroke-width="4"/>
+    <path d="M66 82c10-14 36-18 64-18" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="4" stroke-linecap="round"/>
+    <path d="M62 120c2 16 26 24 68 24" fill="none" stroke="#22c3dd" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/>
+    <!-- глаза -->
+    <g>
+      <ellipse cx="100" cy="106" rx="19" ry="17" fill="#ffc21a" filter="url(#rg)" opacity=".9"/>
+      <ellipse cx="160" cy="106" rx="19" ry="17" fill="#ffc21a" filter="url(#rg)" opacity=".9"/>
+      <ellipse cx="100" cy="106" rx="13" ry="12.5" fill="url(#re)"/>
+      <ellipse cx="160" cy="106" rx="13" ry="12.5" fill="url(#re)"/>
+      <circle cx="95" cy="101" r="3.6" fill="#fff"/><circle cx="155" cy="101" r="3.6" fill="#fff"/>
+    </g>
+    <!-- подбородок -->
+    <path d="M96 164c20 8 48 8 68 0" fill="none" stroke="#9fabbb" stroke-width="3" stroke-linecap="round"/>
+    <path d="M118 175h24" stroke="#c4ccd7" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>

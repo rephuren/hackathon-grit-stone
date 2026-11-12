@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 262" role="img" aria-label="Робот-редактор">
+  <defs>
+    <linearGradient id="w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".62" stop-color="#f3f6fa"/><stop offset="1" stop-color="#cfd8e4"/></linearGradient>
+    <linearGradient id="v" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#23262e"/><stop offset="1" stop-color="#07080b"/></linearGradient>
+    <radialGradient id="e" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#6ff4f1"/><stop offset="1" stop-color="#19c9d6"/></radialGradient>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#8a6a00" flood-opacity=".28"/></filter>
+  </defs>
+  <g stroke="#fff7cf" stroke-width="8" stroke-linecap="round"><path d="M196 34l9-20"/><path d="M212 52l20-13"/><path d="M218 74l21-3"/></g>
+  <g filter="url(#s)">
+    <!-- рука, которая машет -->
+    <path d="M84 186C62 176 50 158 44 138" fill="none" stroke="url(#w)" stroke-width="24" stroke-linecap="round"/>
+    <circle cx="80" cy="184" r="13" fill="#1b1e25"/>
+    <g fill="#fff"><rect x="22" y="96" width="13" height="30" rx="6.5" transform="rotate(-16 28 111)"/><rect x="35" y="90" width="13" height="32" rx="6.5" transform="rotate(-4 41 106)"/><rect x="49" y="94" width="13" height="30" rx="6.5" transform="rotate(10 55 109)"/><ellipse cx="42" cy="128" rx="21" ry="18"/><ellipse cx="62" cy="130" rx="8" ry="11" transform="rotate(35 62 130)"/></g>
+    <!-- правая рука -->
+    <path d="M166 192c14 8 20 22 20 40" fill="none" stroke="url(#w)" stroke-width="22" stroke-linecap="round"/>
+    <circle cx="164" cy="188" r="12" fill="#1b1e25"/>
+    <!-- ноги -->
+    <rect x="86" y="240" width="26" height="30" rx="12" fill="#1b1e25"/><rect x="130" y="240" width="26" height="30" rx="12" fill="#1b1e25"/>
+    <!-- тело -->
+    <path d="M70 210c0-34 22-52 52-52s52 18 52 52c0 30-22 46-52 46s-52-16-52-46z" fill="url(#w)"/>
+    <g fill="#ffd21f"><path d="M101 190l18 5v27l-18-5z"/><path d="M143 190l-18 5v27l18-5z"/></g>
+    <rect x="98" y="150" width="48" height="16" rx="8" fill="#1b1e25"/>
+    <!-- голова -->
+    <g transform="rotate(-6 122 96)">
+      <ellipse cx="46" cy="100" rx="15" ry="27" fill="url(#w)"/><ellipse cx="44" cy="100" rx="7" ry="17" fill="#1b1e25"/>
+      <ellipse cx="198" cy="100" rx="15" ry="27" fill="url(#w)"/><ellipse cx="200" cy="100" rx="7" ry="17" fill="#1b1e25"/>
+      <rect x="50" y="34" width="144" height="126" rx="58" fill="url(#w)"/>
+      <rect x="66" y="56" width="112" height="82" rx="38" fill="url(#v)"/>
+      <path d="M78 78c6-12 20-16 40-16" fill="none" stroke="#fff" stroke-opacity=".13" stroke-width="7" stroke-linecap="round"/>
+      <g fill="none" stroke="url(#e)" stroke-width="10" stroke-linecap="round"><path d="M88 106c4-17 22-17 26 0"/><path d="M132 106c4-17 22-17 26 0"/></g>
+    </g>
+  </g>
+</svg>

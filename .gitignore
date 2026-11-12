@@ -1,0 +1,39 @@
+# система и редакторы
+.DS_Store
+.claude/
+.idea/
+.vscode/
+
+# секреты и локальные данные (НИКОГДА не коммитить)
+.env
+app/.env
+app/data/
+*.bak
+*.bak-*
+*.db
+*.sqlite*
+
+# окружение и кэши
+app/.venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+
+# сборки мобильной оболочки (генерируются mobile/sync.sh)
+mobile/www/
+mobile/ios/App/Pods/
+mobile/ios/App/build/
+mobile/ios/DerivedData/
+
+# копии и сгенерированное
+backups/
+deploy/hf-space/
+deploy/__pycache__/
+
+# материалы заказчика и тяжёлые файлы: хранить на общем диске команды, не в git
+docs/*.pdf
+docs/*.docx
+*.zip
+docs/Транскрибация*.txt

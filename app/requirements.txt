@@ -1,0 +1,18 @@
+fastapi==0.162.4
+uvicorn[standard]==0.54.0
+python-multipart==0.0.33
+pillow==13.0.0
+pillow-heif==1.8.1
+httpx==0.28.1
+pytest==9.2.0
+# необязательно: нейросетевые функции (улучшение качества, удаление фона)
+# onnxruntime==1.31.1
+# numpy==2.5.4
+# необязательно: локальная генерация кадра по описанию и перевод ru→en (модели: scripts/fetch_models.py imagegen)
+# torch==2.15.0
+# diffusers==0.42.1
+# transformers==5.22.2
+# accelerate==1.15.0
+# safetensors==0.8.0
+# sentencepiece==0.2.3
+# sacremoses==0.2.0

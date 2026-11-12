@@ -300,3 +300,16 @@ html{touch-action:manipulation}[data-act],[data-i],[data-tab],[data-f],[data-opt
 .nav a{font-size:12px}
 .tip .bb button{position:relative}.tip .bb button::after{content:'';position:absolute;inset:-8px}
 .statusrow a,[data-act=toggleedit]{display:inline-flex;align-items:center;min-height:44px}
+
+/* Настенный календарь: полноширинный лист с фото и настоящей сеткой дат. */
+.calendar-view .spread{grid-template-columns:1fr;max-width:420px;margin:0 auto}
+.calendar-view .spread::after{display:none}
+.pg.t-calendar{aspect-ratio:1/1.18;padding:0;display:grid;grid-template-rows:minmax(0,1.35fr) auto auto;gap:0;background:#fff}
+.t-calendar .cal-photo{min-height:0;overflow:hidden;background:var(--sub)}
+.t-calendar .cal-photo img{width:100%;height:100%;object-fit:cover}
+.t-calendar .cal-head{display:flex;align-items:baseline;justify-content:space-between;padding:5% 7% 2%;color:var(--ink)}
+.t-calendar .cal-head strong{font-size:clamp(15px,5vw,24px);line-height:1}.t-calendar .cal-head span{font-weight:800;color:var(--muted)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);padding:0 6% 6%;text-align:center;gap:2px;font-size:clamp(7px,2.6vw,12px)}
+.cal-grid em,.cal-grid b,.cal-grid i{display:grid;place-items:center;min-height:1.35em;font-style:normal}
+.cal-grid em{font-size:.75em;text-transform:uppercase;color:var(--muted);font-weight:800}.cal-grid b{font-weight:700;color:var(--ink)}.cal-grid .weekend{color:#d64141}
+.strip.sp .mini-sp .t-calendar{aspect-ratio:1/1.18}.strip.sp .t-calendar .cal-head{padding:3% 5% 1%}.strip.sp .t-calendar .cal-head strong{font-size:4px}.strip.sp .t-calendar .cal-head span{font-size:3px}.strip.sp .t-calendar .cal-grid{font-size:2px;padding:0 4% 4%;gap:0}

@@ -1,9 +1,0 @@
-{
- "who": "sasha",
- "task": "вкладки seg на узком экране",
- "paths": [
-  "app/frontend/styles.css"
- ],
- "created": 1794478157,
- "updated": 1794478157
-}

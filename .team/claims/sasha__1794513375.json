@@ -1,0 +1,15 @@
+{
+ "who": "sasha",
+ "task": "UX P0/P1: оформление в заказ, загрузка, Smart Check, редактор",
+ "paths": [
+  "app/backend/main.py",
+  "app/backend/db.py",
+  "app/backend/preflight.py",
+  "app/frontend/app.js",
+  "app/frontend/styles.css",
+  "app/frontend/theme.css",
+  "app/tests/test_api.py"
+ ],
+ "created": 1794513375,
+ "updated": 1794513375
+}

@@ -42,3 +42,11 @@ html.dark .chip.soon{background:#2a2e33;color:#a7a29b;border-color:#4a4f55}
 html.dark .stage,html.dark .ba figure{background:#0d0e10}
 html.dark .sheet-bg{background:rgba(0,0,0,.6)}
 html.dark .pg,html.dark .spread,html.dark .book i{color:#171717}
+/* контраст в тёмной теме и на синих кнопках */
+html.calm .btn.big small{opacity:.92}
+html.dark .pillbtn{background:var(--y);color:#171717}
+html.dark .pillbtn:disabled{background:#3a3f45;color:#a7a29b}
+html.dark .tile .n{background:rgba(0,0,0,.65);color:#fff}
+html.dark .busy{background:rgba(0,0,0,.7);color:#fff}
+html.dark .mini .danger{color:#ff9b8f}
+html.calm .btn:not(.line):not(.grey):not(.danger) small{color:#fff}

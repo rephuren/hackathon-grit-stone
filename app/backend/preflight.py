@@ -34,7 +34,7 @@ BPP_MIN = 0.18        # байт на пиксель у JPEG при размер
 DUP_CELLS = 0.06      # допустимая доля сильно отличающихся клеток у «дубликатов»
 CROP_LOSS = 0.15      # допустимая доля главного объекта, уходящая под обрез
 DUP_HAMMING = 4       # расстояние между перцептивными хэшами
-SLOT_FACTOR = {"book": 0.6, "print": 1.0}  # доля длинной стороны страницы, занимаемая фото
+SLOT_FACTOR = {"book": 0.6, "calendar": 0.65, "print": 1.0}  # доля длинной стороны страницы, занимаемая фото
 LAPLACE = ImageFilter.Kernel((3, 3), [0, 1, 0, 1, -4, 1, 0, 1, 0], 1, 128)
 
 
@@ -206,7 +206,7 @@ def _slot_aspects(product, settings, layout) -> tuple:
     size = size_of(product, settings.get("size"))
     pa = size["w"] / size["h"]
     out = {}
-    if product["kind"] == "book" and layout:
+    if product["kind"] in ("book", "calendar") and layout:
         for pg in layout["pages"]:
             for i, pid in enumerate(pg["photo_ids"]):
                 if pg["template"] == "one-two":
@@ -331,7 +331,7 @@ def quality_report(product: dict, settings: dict, photos: list, layout) -> dict:
         if box and (box[2] - box[0]) * (box[3] - box[1]) <= 0.5:  # контуры по всему кадру: выделенного объекта нет
             if ph["id"] in slots:
                 sr = slots[ph["id"]]
-            elif product["kind"] != "book":
+            elif product["kind"] == "print":
                 sr = pa if w >= h else 1 / pa
             else:
                 sr = None
@@ -364,17 +364,17 @@ def check_project(product: dict, settings: dict, photos: list, layout) -> dict:
     rep = quality_report(product, settings, photos, layout)
     warnings = [{k: v for k, v in i.items() if k != "level"} for i in rep["issues"] if i["level"] == "warn"]
     tips = [{k: v for k, v in i.items() if k != "level"} for i in rep["issues"] if i["level"] == "tip"]
-    if product["kind"] == "book":
+    if product["kind"] in ("book", "calendar"):
         if not layout:
             blocking.append({"code": "no_layout", "message": "Сначала создайте макет (шаг «Макет»)"})
         else:
             if layout.get("unplaced"):
                 blocking.append({"code": "unplaced",
-                                 "message": f"{layout['unplaced']} фото не помещаются. Увеличьте число страниц"})
+                                 "message": f"{layout['unplaced']} фото не помещаются в макет"})
             blank = sum(1 for pg in layout["pages"] if not pg["photo_ids"])
             if blank:
                 warnings.append({"photo_id": None, "code": "blank_pages", "fix": [],
-                                 "message": f"Пустых страниц: {blank}. Добавьте фото или уменьшите число страниц"})
+                                 "message": f"Пустых листов: {blank}. Добавьте фотографии"})
     return {"ok": not blocking, "blocking": blocking, "warnings": warnings, "tips": tips,
             "duplicates": rep["duplicates"], "bad": rep["bad"],
             "required_px": rep["required_px"], "photos": n}

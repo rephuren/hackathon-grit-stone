@@ -201,9 +201,22 @@ def test_quality_checks_cleanup_and_formats(client, anna):
     assert names[keep] == "a.jpg" and [names[i] for i in chk["duplicates"][0]["remove"]] == ["a_copy.jpg"]
     assert {names[b["photo_id"]] for b in chk["bad"]} >= {"black.jpg", "white.jpg"}
     out = client.post(f"/api/projects/{pid}/cleanup", json={"duplicates": True, "bad": True}, headers=anna).json()
-    left = {p["name"] for p in out["project"]["photos"]}
-    assert "a.jpg" in left and "a_copy.jpg" not in left and "black.jpg" not in left and "white.jpg" not in left
+    photos_after = {p["name"]: p for p in out["project"]["photos"]}
+    assert not photos_after["a.jpg"]["excluded"]
+    assert photos_after["a_copy.jpg"]["excluded"]
+    assert photos_after["black.jpg"]["excluded"] and photos_after["white.jpg"]["excluded"]
     assert out["duplicates"] >= 1 and out["bad"] >= 2
+    # Автоочистка обратима: файл остаётся в проекте и возвращается обычным флагом.
+    restore_id = photos_after["a_copy.jpg"]["id"]
+    restored = client.patch(
+        f"/api/projects/{pid}/photos/{restore_id}/flags",
+        json={"excluded": False},
+        headers=anna,
+    )
+    assert restored.status_code == 200
+    restored_photo = next(p for p in restored.json()["photos"] if p["id"] == restore_id)
+    assert not restored_photo["excluded"]
+
 
     # форматы: GIF отклоняется с понятной причиной, WEBP и прозрачный PNG принимаются с подсказкой
     gif = io.BytesIO(); Image.new("RGB", (400, 400), "red").save(gif, "GIF")

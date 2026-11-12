@@ -75,9 +75,39 @@ if _origins:  # нативные оболочки (Capacitor и др.) ходя�
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")  # для нативных клиентов ссылки на файлы должны быть полными
 
 
+def _setup_log():
+    """Журнал запросов приложения (ОТ-04): метод, путь без query, статус, время. Тела запросов, фото и токены не пишем."""
+    import logging
+    from logging.handlers import RotatingFileHandler
+    lg = logging.getLogger("picpac.http")
+    if lg.handlers:
+        return lg
+    lg.setLevel(logging.INFO)
+    lg.propagate = False
+    try:
+        os.makedirs(D.data_dir(), exist_ok=True)
+        h = RotatingFileHandler(os.path.join(D.data_dir(), "app.log"), maxBytes=1_000_000, backupCount=2, encoding="utf-8")
+    except OSError:
+        h = logging.StreamHandler()
+    h.setFormatter(logging.Formatter("%(asctime)sZ %(message)s", "%Y-%m-%dT%H:%M:%S"))
+    logging.Formatter.converter = time.gmtime
+    lg.addHandler(h)
+    return lg
+
+
+_HTTPLOG = _setup_log()
+
+
 @app.middleware("http")
 async def security_headers(request, call_next):
-    resp = await call_next(request)
+    t0 = time.monotonic()
+    try:
+        resp = await call_next(request)
+    except Exception:
+        _HTTPLOG.exception("%s %s 500 необработанная ошибка", request.method, request.url.path)
+        raise
+    if request.url.path.startswith("/api") and request.url.path != "/api/health":
+        _HTTPLOG.info("%s %s %s %dms", request.method, request.url.path, resp.status_code, (time.monotonic() - t0) * 1000)
     resp.headers.setdefault("X-Content-Type-Options", "nosniff")
     resp.headers.setdefault("Referrer-Policy", "no-referrer")
     path = request.url.path

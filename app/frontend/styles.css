@@ -64,6 +64,11 @@ svg.ic{flex:none;display:block}
 .opt.on{background:var(--y-soft);border-color:var(--y)}
 label.lb{display:block;font-weight:800;font-size:15px;margin:16px 0 8px}
 input[type=text],input[type=tel],input[type=password],textarea{width:100%;min-height:52px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--canvas);font-size:16px}
+.field-hint{margin:6px 2px 0;color:var(--muted);font-size:13px;line-height:1.35}
+.password-field{position:relative}
+.password-field input{padding-right:96px}
+.password-toggle{position:absolute;right:6px;top:4px;min-width:84px;height:44px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-size:14px;font-weight:800}
+.password-toggle:focus-visible{outline:3px solid var(--y);outline-offset:0}
 textarea{min-height:84px;resize:vertical}
 input[type=range]{width:100%;accent-color:var(--ink);min-height:32px}
 input[type=checkbox]{accent-color:var(--ink)}

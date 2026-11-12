@@ -358,3 +358,8 @@ h2.sec{font-size:18px;margin:16px 0 8px}
 /* «Скоро»: видно, что раздела ещё нет, и он не выглядит кнопкой */
 .chip.soon{background:#ecece6;color:#55554f;border:1px dashed #b9b9b0;font-size:12px;padding:3px 9px;margin-left:auto}
 .menu > div:has(.chip.soon){color:#76766f;cursor:default}
+
+/* «назад» дальше от края экрана: в Telegram на iPhone край отдан под системный жест и касание у самого края теряется */
+.ib{margin-left:-2px;width:48px;height:48px}
+.tcard .tv{position:relative;display:block}.tcard .tv .cov{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tcard .tc-b{flex:1}.tcard .go{margin-top:auto}

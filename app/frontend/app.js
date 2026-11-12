@@ -383,12 +383,11 @@ async function viewNew() {
   track('product_view');
   shell(`${head(copy[0], { back: '/' })}
   <div class="seg"><a class="${kind === 'book' ? 'on' : ''}" href="#/new">${ic('book', 20)}Фотокнига</a><a class="${kind === 'print' ? 'on' : ''}" href="#/new?kind=print">${ic('image', 20)}Фото</a><a class="${kind === 'calendar' ? 'on' : ''}" href="#/new?kind=calendar">${ic('cal', 20)}Календарь</a></div>
-  ${tpls.length ? `<h2 class="sec">Готовые шаблоны</h2><div class="tcards">${tpls.map((t) => `<button class="tcard" data-act="tpl" data-id="${t.id}" data-product="${t.product_id}" data-theme="${t.theme}" data-title="${esc(t.title)}">
-    <span class="pg t-grid v1 th-${t.theme}" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="tc-b"><b class="price">от ${byn(t.price_from)}</b><span class="tt">${esc(t.title)}</span>
-    <small>${esc(t.descr)}</small><span class="chips"><span class="chip w">${esc(t.occasion)}</span><span class="chip w">${esc(t.photos_hint)}</span></span><span class="go">Выбрать</span></span></button>`).join('')}</div>
-  <h2 class="sec">Или свой макет</h2>` : ''}
-  <p class="muted">${copy[1]}</p>
-  <div class="stack">${products.length ? products.map((p) => `<button class="card row" style="width:100%;text-align:left" data-act="create" data-id="${p.id}" data-title="${esc(p.title)}"><span class="g"><h3 style="font-size:18px">${esc(p.title)}</h3><span class="muted">${esc(p.descr)}</span><br><b>от ${byn(Math.min(...p.options.sizes.map((s) => s.base)))}${p.kind === 'print' ? ' за фото' : ''}</b></span>${ic('next')}</button>`).join('') : '<div class="note y">Каталог календарей обновляется. Попробуйте ещё раз через минуту.</div>'}</div>`, { active: '/new', hasBack: true });
+  <h2 class="sec">${{ book: 'Фотокниги', print: 'Печать фото', calendar: 'Календари' }[kind]}</h2><p class="muted">${copy[1]}</p>
+  <div class="stack">${products.length ? products.map((p) => `<button class="card row" style="width:100%;text-align:left" data-act="create" data-id="${p.id}" data-title="${esc(p.title)}"><span class="g"><h3 style="font-size:18px">${esc(p.title)}</h3><span class="muted">${esc(p.descr)}</span><br><b>от ${byn(Math.min(...p.options.sizes.map((s) => s.base)))}${p.kind === 'print' ? ' за фото' : ''}</b></span>${ic('next')}</button>`).join('') : '<div class="note y">Каталог календарей обновляется. Попробуйте ещё раз через минуту.</div>'}</div>
+  ${tpls.length ? `<h2 class="sec">${kind === 'book' ? 'Фотокниги по событиям' : 'Готовые идеи'}</h2><p class="why" style="margin:-4px 0 10px">Как в каталоге picpac.by: выберите повод, оформление применится при сборке макета.</p><div class="tcards">${tpls.map((t) => `<button class="tcard" data-act="tpl" data-id="${t.id}" data-product="${t.product_id}" data-theme="${t.theme}" data-title="${esc(t.title)}">
+    <span class="tv"><span class="pg t-grid v1 th-${t.theme}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>${t.image ? `<img class="cov" src="${t.image}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span><span class="tc-b"><b class="price">от ${byn(t.price_from)}</b><span class="tt">${esc(t.title)}</span>
+    <small>${esc(t.descr)}</small><span class="chips"><span class="chip w">${esc(t.occasion)}</span><span class="chip w">${esc(t.photos_hint)}</span></span><span class="go">Выбрать</span></span></button>`).join('')}</div>` : ''}`, { active: '/new', hasBack: true });
   state.ctx = { create: async (el) => {
     el.disabled = true;
     try {
@@ -967,7 +966,7 @@ async function stepLayout(project) {
   if (!incl.length) return go(`/project/${project.id}/photos`);
   let fresh = false;
   if (!project.layout) {
-    shell(`${head(project.title, { back: `/project/${project.id}/edit` })}<div class="foot" style="margin-top:80px"><span class="spin"></span>Создаём макет…</div>`, { noNav: true, hasBack: true });
+    shell(`${head(project.title, { back: `/project/${project.id}/photos` })}<div class="foot" style="margin-top:80px"><span class="spin"></span>Создаём макет…</div>`, { noNav: true, hasBack: true });
     /* Число страниц подбираем под число фото, чтобы в книге не было пустых страниц. Поменять можно в «Стиль». */
     if (project.product.kind === 'book') {
       try { const sg = await api(`/projects/${project.id}/suggest-pages`); if (sg.pages && sg.pages !== project.settings.pages) await api('/projects/' + project.id, { method: 'PATCH', body: { settings: { pages: sg.pages } } }); } catch { /* оставим число страниц как было */ }
@@ -991,7 +990,7 @@ async function stepLayout(project) {
   const nw = chk.warnings.length;
   const okAll = chk.ok && !nw;
   const blank = pages.filter((pg) => !pg.photo_ids.length).length;
-  shell(`${head(project.title, { back: `/project/${project.id}/edit`, right: `<button class="ib r" data-act="cover" aria-label="Переименовать и выбрать обложку">${ic('pencil')}</button>` })}
+  shell(`${head(project.title, { back: `/project/${project.id}/photos`, right: `<button class="ib r" data-act="cover" aria-label="Переименовать и выбрать обложку">${ic('pencil')}</button>` })}
   ${fresh ? tip('robot', calendar ? `Разложил ${incl.length} фото по 12 месяцам. Листайте календарь и выберите оформление.` : `Разложил ${incl.length} фото на ${project.settings.pages} стр. и сгруппировал по дате съёмки. Листайте развороты.`, 'lay1') : ''}
   ${lay && lay.unplaced ? `<div class="note bad"><b>Не помещаются ${lay.unplaced} фото.</b> Увеличьте число страниц.<button class="btn sm line" data-act="style">Изменить число страниц</button></div>` : ''}
   ${blank ? `<div class="note y"><b>${blank} ${plural(blank, 'страница пустая', 'страницы пустые', 'страниц пустые')}.</b> В этом ${calendar ? 'календаре' : 'альбоме'} минимум ${project.product.pages.min} ${calendar ? 'месячных листов' : 'стр.'}. Добавьте ещё фото, чтобы заполнить их.<a class="btn sm line" href="#/project/${project.id}/photos">Добавить фото</a></div>` : ''}

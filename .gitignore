@@ -37,3 +37,6 @@ docs/*.pdf
 docs/*.docx
 *.zip
 docs/Транскрибация*.txt
+
+# обложки событий picPac (материалы заказчика, только для демо на стенде)
+app/frontend/img/events/

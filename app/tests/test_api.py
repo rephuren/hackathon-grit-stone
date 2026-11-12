@@ -712,7 +712,7 @@ def test_smart_story_pin_exclude_return(client, anna):
 def test_templates_catalog_from_api(client):
     ts = client.get("/api/templates").json()
     ids = {t["id"] for t in ts}
-    assert {"wedding", "graduation", "family-calendar"} <= ids
+    assert {"wedding", "newyear", "grade11", "lovestory", "family-calendar"} <= ids and len(ts) == 13
     for t in ts:
         assert t["price_from"] > 0 and t["currency"] == "BYN" and t["product_title"]
         assert t["theme"] in ("classic", "kids", "travel", "party", "soft")
@@ -720,6 +720,7 @@ def test_templates_catalog_from_api(client):
 
 def test_assistant_demo_answers_with_user_context(client, anna, monkeypatch):
     monkeypatch.delenv("MARY_API_URL", raising=False)
+    monkeypatch.delenv("LLM_BASE_URL", raising=False)
     r = client.post("/api/assistant", json={"message": "Сколько стоит календарь?"}, headers=anna)
     assert r.status_code == 200 and r.json()["provider"] == "demo"
     assert "календар" in r.json()["reply"].lower()
@@ -732,6 +733,7 @@ def test_assistant_demo_answers_with_user_context(client, anna, monkeypatch):
 
 
 def test_assistant_falls_back_when_mary_unreachable(client, anna, monkeypatch):
+    monkeypatch.delenv("LLM_BASE_URL", raising=False)
     monkeypatch.setenv("MARY_API_URL", "http://127.0.0.1:9/none")
     monkeypatch.setenv("MARY_API_KEY", "test-key")
     r = client.post("/api/assistant", json={"message": "Сколько нужно фото?"}, headers=anna).json()

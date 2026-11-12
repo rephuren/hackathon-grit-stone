@@ -44,8 +44,17 @@ PRODUCTS = [
          {"id": "30x30", "label": "30 × 30 см", "w": 30, "h": 30, "base": 6500}],
          "covers": [{"id": "spiral", "label": "Пружина"}, {"id": "bar", "label": "Планка"}],
          "production_days": 3}},
-    {"id": "print", "kind": "print", "title": "Печать фото",
-     "descr": "Отпечатки на фотобумаге, от одной штуки", "min_photos": 1, "pages": None,
+    {"id": "print", "kind": "print", "title": "Фотохимическая фотопечать",
+     "descr": "Классическая фотохимическая печать, от одной штуки", "min_photos": 1, "pages": None,
+     "options": {"sizes": [
+         {"id": "10x15", "label": "10 × 15 см", "w": 10, "h": 15, "base": 130},
+         {"id": "15x20", "label": "15 × 20 см", "w": 15, "h": 20, "base": 160},
+         {"id": "20x30", "label": "20 × 30 см", "w": 20, "h": 30, "base": 320},
+         {"id": "30x45", "label": "30 × 45 см", "w": 30, "h": 45, "base": 2000}],
+         "covers": [{"id": "glossy", "label": "Глянцевые"}, {"id": "matte", "label": "Матовые"}],
+         "production_days": 2}},
+    {"id": "print-digital", "kind": "print", "title": "Цифровая фотопечать",
+     "descr": "Цифровая печать на фотобумаге, от одной штуки", "min_photos": 1, "pages": None,
      "options": {"sizes": [
          {"id": "10x15", "label": "10 × 15 см", "w": 10, "h": 15, "base": 130},
          {"id": "15x20", "label": "15 × 20 см", "w": 15, "h": 20, "base": 160},
@@ -55,21 +64,22 @@ PRODUCTS = [
          "production_days": 2}},
 ]
 
-# Готовые шаблоны (mock API): поводы, как в каталоге picPac. Шаблон = продукт + оформление страниц + рекомендованный объём.
-# Реальные шаблоны сайта picpac.by подключаются заменой этого списка на ответ их API (доступа пока нет).
+# Фотокниги по событиям (как раздел picpac.by/fotoknigi-po-sobytiyam). Mock API: шаблон = продукт + оформление страниц.
+# Обложки лежат в app/frontend/img/events (материалы picPac, в git не входят); без них показывается цветное превью.
 TEMPLATES = [
-    {"id": "wedding", "title": "Свадебная фотокнига", "occasion": "Свадьба", "product_id": "premium", "theme": "soft",
-     "descr": "Нежные цвета, круглые рамки, крупные кадры на разворот", "photos_hint": "30–60 фото"},
-    {"id": "graduation", "title": "Выпускной альбом", "occasion": "Выпускной", "product_id": "graduation", "theme": "classic",
-     "descr": "Строгая классика: портреты класса и общие кадры", "photos_hint": "20–40 фото"},
-    {"id": "kids", "title": "Детский альбом", "occasion": "Дети", "product_id": "classic", "theme": "kids",
-     "descr": "Звёздочки, облака и мягкие рамки для первых лет", "photos_hint": "20–50 фото"},
-    {"id": "travel", "title": "Книга путешествий", "occasion": "Путешествие", "product_id": "classic", "theme": "travel",
-     "descr": "Фото-карточки на крафтовом фоне, как дорожный дневник", "photos_hint": "20–60 фото"},
-    {"id": "party", "title": "Праздник и день рождения", "occasion": "Праздник", "product_id": "lite", "theme": "party",
-     "descr": "Яркий коллаж с конфетти и жёлтым фоном", "photos_hint": "10–30 фото"},
-    {"id": "family-calendar", "title": "Семейный календарь", "occasion": "Подарок", "product_id": "calendar", "theme": "soft",
-     "descr": "12 месяцев с семейными фото и сеткой дат", "photos_hint": "12 фото"},
+    {"id": "newyear", "title": "Фотокниги на Новый год", "occasion": "Новый год", "product_id": "classic", "theme": "party", "descr": "Праздничные развороты для зимних кадров", "photos_hint": "20–40 фото", "image": "img/events/newyear.jpg"},
+    {"id": "family", "title": "Фотокниги для семьи", "occasion": "Семья", "product_id": "premium", "theme": "soft", "descr": "Семейная история в одной книге", "photos_hint": "20–60 фото", "image": "img/events/family.jpg"},
+    {"id": "birthday", "title": "Фотокниги ко дню рождения", "occasion": "День рождения", "product_id": "lite", "theme": "party", "descr": "Яркий коллаж с конфетти", "photos_hint": "10–30 фото", "image": "img/events/birthday.jpg"},
+    {"id": "kids", "title": "Фотокниги для детей", "occasion": "Дети", "product_id": "classic", "theme": "kids", "descr": "Звёздочки, облака и мягкие рамки", "photos_hint": "20–50 фото", "image": "img/events/kids.jpg"},
+    {"id": "baptism", "title": "Фотокниги на крещение ребёнка", "occasion": "Крещение", "product_id": "premium", "theme": "soft", "descr": "Нежные цвета, крупные кадры", "photos_hint": "15–30 фото", "image": "img/events/baptism.jpg"},
+    {"id": "kindergarten", "title": "Выпускные альбомы для детского сада", "occasion": "Детский сад", "product_id": "graduation", "theme": "kids", "descr": "Портреты группы и общие кадры", "photos_hint": "20–40 фото", "image": "img/events/kindergarten.jpg"},
+    {"id": "grade4", "title": "Выпускные альбомы для 4 класса", "occasion": "4 класс", "product_id": "graduation", "theme": "classic", "descr": "Начальная школа: класс и учитель", "photos_hint": "20–40 фото", "image": "img/events/grade4.jpg"},
+    {"id": "grade9", "title": "Выпускные альбомы для 9 класса", "occasion": "9 класс", "product_id": "graduation", "theme": "classic", "descr": "Строгая классика для класса", "photos_hint": "20–40 фото", "image": "img/events/grade9.jpg"},
+    {"id": "grade11", "title": "Выпускные альбомы для 11 класса", "occasion": "11 класс", "product_id": "graduation", "theme": "classic", "descr": "Выпускной: портреты и общие кадры", "photos_hint": "20–40 фото", "image": "img/events/grade11.jpg"},
+    {"id": "lovestory", "title": "Фотокниги Love Story", "occasion": "Love Story", "product_id": "premium", "theme": "soft", "descr": "История пары, круглые рамки", "photos_hint": "20–40 фото", "image": "img/events/lovestory.jpg"},
+    {"id": "travel", "title": "Фотокниги для путешествий", "occasion": "Путешествия", "product_id": "classic", "theme": "travel", "descr": "Фото-карточки на крафте, как дневник", "photos_hint": "20–60 фото", "image": "img/events/travel.jpg"},
+    {"id": "wedding", "title": "Фотокниги на свадьбу", "occasion": "Свадьба", "product_id": "premium", "theme": "soft", "descr": "Нежная палитра, кадры на разворот", "photos_hint": "30–60 фото", "image": "img/events/wedding.jpg"},
+    {"id": "family-calendar", "title": "Семейный календарь", "occasion": "Подарок", "product_id": "calendar", "theme": "soft", "descr": "12 месяцев с семейными фото и сеткой дат", "photos_hint": "12 фото", "image": ""},
 ]
 
 DELIVERY = {

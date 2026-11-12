@@ -725,6 +725,8 @@ def test_assistant_demo_answers_with_user_context(client, anna, monkeypatch):
     assert "календар" in r.json()["reply"].lower()
     r = client.post("/api/assistant", json={"message": "Где мой заказ?"}, headers=anna).json()
     assert r["reply"] and all(a.get("href", "#/").startswith("#/") for a in r["actions"])
+    assert "минимум" in client.post("/api/assistant", json={"message": "Сколько нужно фото?"}, headers=anna).json()["reply"]
+    assert "шаблон" in client.post("/api/assistant", json={"message": "Какие есть шаблоны?"}, headers=anna).json()["reply"].lower()
     assert client.post("/api/assistant", json={"message": ""}, headers=anna).status_code == 422
     assert client.post("/api/assistant", json={"message": "привет"}).status_code == 401
 
@@ -733,4 +735,4 @@ def test_assistant_falls_back_when_mary_unreachable(client, anna, monkeypatch):
     monkeypatch.setenv("MARY_API_URL", "http://127.0.0.1:9/none")
     monkeypatch.setenv("MARY_API_KEY", "test-key")
     r = client.post("/api/assistant", json={"message": "Сколько нужно фото?"}, headers=anna).json()
-    assert r["provider"] == "demo-fallback" and "фото" in r["reply"]
+    assert r["provider"] == "demo-fallback" and "минимум" in r["reply"]

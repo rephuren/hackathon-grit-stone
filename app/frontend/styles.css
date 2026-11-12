@@ -313,3 +313,45 @@ html{touch-action:manipulation}[data-act],[data-i],[data-tab],[data-f],[data-opt
 .cal-grid em,.cal-grid b,.cal-grid i{display:grid;place-items:center;min-height:1.35em;font-style:normal}
 .cal-grid em{font-size:.75em;text-transform:uppercase;color:var(--muted);font-weight:800}.cal-grid b{font-weight:700;color:var(--ink)}.cal-grid .weekend{color:#d64141}
 .strip.sp .mini-sp .t-calendar{aspect-ratio:1/1.18}.strip.sp .t-calendar .cal-head{padding:3% 5% 1%}.strip.sp .t-calendar .cal-head strong{font-size:4px}.strip.sp .t-calendar .cal-head span{font-size:3px}.strip.sp .t-calendar .cal-grid{font-size:2px;padding:0 4% 4%;gap:0}
+
+
+/* ---------- правки вкладки 11 ---------- */
+/* ползунки: меняются только перетаскиванием кружка, случайное касание шкалы при прокрутке ничего не меняет */
+input[type=range]{pointer-events:none;touch-action:pan-y}
+input[type=range]::-webkit-slider-thumb{pointer-events:auto;width:30px;height:30px}
+input[type=range]::-moz-range-thumb{pointer-events:auto;width:30px;height:30px}
+/* пустая корзина */
+.empty{text-align:center;padding:28px 8px;display:flex;flex-direction:column;gap:10px;align-items:stretch}
+.empty .ei{align-self:center;width:84px;height:84px;border-radius:50%;background:var(--y-soft,#fff6c2);display:flex;align-items:center;justify-content:center}
+.empty h2{margin:6px 0 0}
+/* карточки шаблонов как в маркетплейсе */
+h2.sec{font-size:18px;margin:16px 0 8px}
+.tcards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tcard{display:flex;flex-direction:column;text-align:left;background:#fff;border:1px solid var(--line);border-radius:16px;padding:0;overflow:hidden;font:inherit;color:inherit}
+.tcard .pg{width:100%;aspect-ratio:1;border-radius:0;padding:10%;gap:6%;pointer-events:none}
+.tcard .pg i{background:#c9d4e0;border-radius:4px}
+.tcard .tc-b{display:flex;flex-direction:column;gap:3px;padding:8px 10px 10px}
+.tcard .price{font-size:17px}
+.tcard .tt{font-weight:800;font-size:14px;line-height:1.2}
+.tcard small{color:var(--muted);font-size:12px;line-height:1.25}
+.tcard .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}.tcard .chips .chip{font-size:11px;padding:3px 7px}
+.tcard .go{margin-top:6px;background:var(--y);border-radius:10px;text-align:center;font-weight:800;padding:9px 0;font-size:14px}
+/* редактор: подписи у кнопок, подсказка жестов, «сбросить» отличается от «отменить» */
+.fab.lbl{flex-direction:column;gap:1px;height:auto;min-height:52px;padding:6px 4px}.fab.lbl small{font-size:10.5px;font-weight:800;line-height:1}
+.stage .hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-size:12.5px;font-weight:700;padding:5px 10px;border-radius:99px;pointer-events:none;white-space:nowrap}
+#stage{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.mini .danger{color:#b42318}
+/* AI-студия: «После» пока готовится */
+.ba .ph-load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;color:var(--muted);text-align:center;padding:10px}
+/* очистка: миниатюры */
+.grid.small{grid-template-columns:repeat(4,1fr);gap:6px}.grid.small .tile img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
+/* помощник */
+.askfab{position:fixed;right:14px;bottom:96px;z-index:30;display:flex;align-items:center;gap:6px;background:#171717;color:#fff;border:0;border-radius:99px;padding:6px 14px 6px 6px;font:inherit;font-weight:800;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.25);min-height:48px}
+.askfab img{width:36px;height:36px;object-fit:contain;background:#ffda24;border-radius:50%}
+.chat{display:flex;flex-direction:column;gap:8px;max-height:48vh;overflow:auto;margin:8px 0}
+.msg{align-self:flex-start;background:var(--sub,#f3f3f0);border-radius:14px 14px 14px 4px;padding:9px 12px;max-width:88%;font-size:15px;line-height:1.35}
+.msg.me{align-self:flex-end;background:#ffda24;border-radius:14px 14px 4px 14px}
+.msg .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.msg .acts .chip{min-height:36px;display:inline-flex;align-items:center}
+.askrow{display:flex;gap:8px;align-items:center}.askrow input{flex:1;min-width:0}
+.tcard .pg i:nth-child(1){background:linear-gradient(135deg,#f7c59f,#f29e7d)}.tcard .pg i:nth-child(2){background:linear-gradient(135deg,#a9c9f2,#7aa7e0)}
+.tcard .pg i:nth-child(3){background:linear-gradient(135deg,#c6e5b5,#8fca86)}.tcard .pg i:nth-child(4){background:linear-gradient(135deg,#f6e08f,#ecc44f)}

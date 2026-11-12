@@ -153,7 +153,7 @@ function tip(kind, html, key) {
 }
 function head(title, { back, backAct, right = '' } = {}) {
   state.back = back || '/'; state.backFn = null;
-  const b = backAct ? `<button class="ib" data-act="${backAct}" aria-label="Назад">${ic('back')}</button>` : back ? `<a class="ib" href="#${back}" aria-label="Назад">${ic('back')}</a>` : '';
+  const b = backAct ? `<button class="ib" data-act="${backAct}" aria-label="Назад">${ic('back')}</button>` : back ? `<a class="ib" href="#${back}" data-back="1" aria-label="Назад">${ic('back')}</a>` : '';
   return `<div class="hd">${b}<h1>${esc(title)}</h1>${right}</div>`;
 }
 function nav(active) {
@@ -297,13 +297,39 @@ async function viewHome() {
     <a class="rowbtn" href="#/new?kind=print">${ic('image')}<span class="g">Быстрая печать фото${V3 ? '' : '<small>Без макета, за пару шагов</small>'}</span>${ic('next')}</a>
     <a class="rowbtn" href="#/new?kind=calendar">${ic('cal')}<span class="g">Создать календарь<small>12 месяцев с вашими фотографиями</small></span>${ic('next')}</a>
   </section>`, { active: '/' });
+  $('#app main').insertAdjacentHTML('beforeend', '<button class="askfab" data-act="assistant" aria-label="Спросить помощника Робо"><img src="' + mimg('robot') + '" alt=""><span>Спросить</span></button>');
   if (V3) maybeOnboarding();
+}
+
+/* ИИ-помощник. Сервер решает, кто отвечает: демо-правила или Mary (если подключены официальные доступы). */
+const chatLog = [];
+function openAssistant() {
+  const draw = () => chatLog.map((m) => `<div class="msg ${m.me ? 'me' : ''}">${esc(m.text).replace(/\n/g, '<br>')}${(m.actions || []).length ? `<div class="acts">${m.actions.map((a) => a.href ? `<a class="chip w" href="${esc(a.href)}" data-act="closesheet">${esc(a.label)}</a>` : `<button class="chip w" data-ask="${esc(a.ask)}">${esc(a.label)}</button>`).join('')}</div>` : ''}</div>`).join('');
+  if (!chatLog.length) chatLog.push({ text: 'Привет! Я Робо. Спрашивайте про заказ, цены, сроки, количество фото или шаблоны.', actions: [{ label: 'Где мой заказ?', ask: 'Где мой заказ?' }, { label: 'Сколько нужно фото?', ask: 'Сколько нужно фото?' }, { label: 'Какие есть шаблоны?', ask: 'Какие есть шаблоны?' }] });
+  sheet(`<h2>Помощник Робо</h2><p class="why" id="asmode" style="margin-top:-6px">Отвечаю по данным приложения</p><div class="chat" id="chat">${draw()}</div>
+    <form id="askf" class="askrow"><input id="askq" type="text" maxlength="500" placeholder="Например: где мой заказ?" autocomplete="off" aria-label="Вопрос помощнику"><button class="btn sm" type="submit">Спросить</button></form>`, (root) => {
+    const box = $('#chat', root), q = $('#askq', root);
+    const scroll = () => { box.scrollTop = box.scrollHeight; };
+    const send = async (text) => {
+      text = (text || '').trim(); if (!text) return;
+      chatLog.push({ me: true, text }); chatLog.push({ text: '…' }); box.innerHTML = draw(); scroll(); q.value = '';
+      try {
+        const r = await api('/assistant', { method: 'POST', body: { message: text } });
+        chatLog[chatLog.length - 1] = { text: r.reply, actions: r.actions };
+        $('#asmode', root).textContent = r.provider === 'mary' ? 'Отвечает Mary' : 'Демо-режим: отвечаю по данным приложения, Mary подключится после выдачи доступов';
+      } catch (x) { chatLog[chatLog.length - 1] = { text: 'Не получилось ответить: ' + x.message }; }
+      box.innerHTML = draw(); scroll(); bind();
+    };
+    const bind = () => $$('[data-ask]', box).forEach((b) => (b.onclick = () => send(b.dataset.ask)));
+    $('#askf', root).onsubmit = (e) => { e.preventDefault(); send(q.value); };
+    bind(); scroll();
+  });
 }
 
 /* Компактные карточки главной (v3): понятный статус и сколько осталось доработать. */
 function contCard(cont, pct) {
   const left = Math.max(0, cont.min_photos - cont.photos_count);
-  const msg = left ? `Осталось добавить ${left} ${plural(left, 'фото', 'фото', 'фото')}` : 'Можно переходить к макету';
+  const msg = left ? `Добавьте ещё ${left} фото: для этого продукта нужно минимум ${cont.min_photos}` : 'Фото хватает, можно собирать макет';
   return `<a class="card cont" href="#/project/${cont.id}/${stepOf(cont.id)}">${book(cont.cover, cont.title)}<div class="g"><div class="ct">Продолжить проект</div>
     <div class="muted">${esc(cont.title)} · ${cont.photos_count} из ${cont.min_photos}</div><div class="bar"><i style="width:${Math.max(6, pct)}%"></i></div><div class="left">${msg}${stepOf(cont.id) !== 'photos' ? ` · этап: ${STEP_NAME[stepOf(cont.id)]}` : ''}</div></div>${ic('next', 20)}</a>`;
 }
@@ -346,7 +372,9 @@ function maybeOnboarding(force) {
 async function viewNew() {
   const asked = state.q.get('kind');
   const kind = ['print', 'calendar'].includes(asked) ? asked : 'book';
-  const products = (await api('/products')).filter((p) => p.kind === kind);
+  const [allProducts, allTemplates] = await Promise.all([api('/products'), api('/templates').catch(() => [])]);
+  const products = allProducts.filter((p) => p.kind === kind);
+  const tpls = allTemplates.filter((t) => t.kind === kind);
   const copy = {
     book: ['Новая фотокнига', 'Выберите тип книги. Формат и число страниц можно поменять позже.'],
     print: ['Печать фото', 'Отпечатки с ваших снимков. Формат можно поменять позже.'],
@@ -355,6 +383,10 @@ async function viewNew() {
   track('product_view');
   shell(`${head(copy[0], { back: '/' })}
   <div class="seg"><a class="${kind === 'book' ? 'on' : ''}" href="#/new">${ic('book', 20)}Фотокнига</a><a class="${kind === 'print' ? 'on' : ''}" href="#/new?kind=print">${ic('image', 20)}Фото</a><a class="${kind === 'calendar' ? 'on' : ''}" href="#/new?kind=calendar">${ic('cal', 20)}Календарь</a></div>
+  ${tpls.length ? `<h2 class="sec">Готовые шаблоны</h2><div class="tcards">${tpls.map((t) => `<button class="tcard" data-act="tpl" data-id="${t.id}" data-product="${t.product_id}" data-theme="${t.theme}" data-title="${esc(t.title)}">
+    <span class="pg t-grid v1 th-${t.theme}" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="tc-b"><b class="price">от ${byn(t.price_from)}</b><span class="tt">${esc(t.title)}</span>
+    <small>${esc(t.descr)}</small><span class="chips"><span class="chip w">${esc(t.occasion)}</span><span class="chip w">${esc(t.photos_hint)}</span></span><span class="go">Выбрать</span></span></button>`).join('')}</div>
+  <h2 class="sec">Или свой макет</h2>` : ''}
   <p class="muted">${copy[1]}</p>
   <div class="stack">${products.length ? products.map((p) => `<button class="card row" style="width:100%;text-align:left" data-act="create" data-id="${p.id}" data-title="${esc(p.title)}"><span class="g"><h3 style="font-size:18px">${esc(p.title)}</h3><span class="muted">${esc(p.descr)}</span><br><b>от ${byn(Math.min(...p.options.sizes.map((s) => s.base)))}${p.kind === 'print' ? ' за фото' : ''}</b></span>${ic('next')}</button>`).join('') : '<div class="note y">Каталог календарей обновляется. Попробуйте ещё раз через минуту.</div>'}</div>`, { active: '/new', hasBack: true });
   state.ctx = { create: async (el) => {
@@ -364,7 +396,26 @@ async function viewNew() {
       const p = await api('/projects', { method: 'POST', body: { product_id: el.dataset.id, title } });
       track('project_created'); go(`/project/${p.id}/photos`);
     } catch (e) { el.disabled = false; toast(e.message); }
+  },
+  tpl: async (el) => {  // шаблон: продукт + оформление; оформление применится при первой сборке макета
+    el.disabled = true;
+    try {
+      const p = await api('/projects', { method: 'POST', body: { product_id: el.dataset.product, title: el.dataset.title } });
+      store.set('pp_theme_' + p.id, el.dataset.theme);
+      track('project_created'); toast('Шаблон выбран: добавьте фото'); go(`/project/${p.id}/photos`);
+    } catch (e) { el.disabled = false; toast(e.message); }
   } };
+}
+
+/* Корзина: проекты, готовые к оформлению. Пустая корзина — понятный экран, а не переход в другой раздел. */
+async function viewCart() {
+  const ps = await api('/projects');
+  const ready = ps.filter((x) => x.status === 'draft' && x.photos_count >= x.min_photos);
+  const wip = ps.filter((x) => x.status === 'draft' && x.photos_count < x.min_photos);
+  shell(`${head('Корзина', { back: '/' })}
+  ${ready.length ? `<p class="muted">Готовы к оформлению: ${ready.length}</p><div class="stack">${ready.map((x) => `<a class="card row" href="#/project/${x.id}/cart">${book(x.cover, x.title)}<span class="g"><h3>${esc(x.title)}</h3><span class="muted">${esc(x.product_title)} · ${x.photos_count} фото</span></span>${ic('next', 20)}</a>`).join('')}</div>`
+    : `<div class="empty"><span class="ei">${ic('cart', 44, 1.6)}</span><h2>Корзина пуста</h2><p class="muted">Соберите фотокнигу, календарь или печать фото, и проект появится здесь.</p>
+    <a class="btn" href="#/new">Выбрать продукт</a>${wip.length ? `<a class="btn line" href="#/projects">Продолжить проект (${wip.length})</a><p class="why">В незавершённых проектах пока мало фото для заказа.</p>` : ''}</div>`}`, { active: '/cart' });
 }
 
 /* Черновики сверху (с фото раньше пустых), заказанные ниже и приглушены: они уже не требуют действий. */
@@ -467,9 +518,21 @@ function cleanCard(project, chk, link) {
 }
 async function doCleanup(project, kind, after) {
   const body = { duplicates: kind === 'duplicates', bad: kind === 'bad' };
+  let ids = [];
+  try {
+    const chk = await api(`/projects/${project.id}/check`);
+    ids = kind === 'duplicates' ? (chk.duplicates || []).flatMap((g) => g.remove) : (chk.bad || []).map((b) => b.photo_id);
+  } catch { /* покажем без списка */ }
+  const byId = Object.fromEntries(project.photos.map((p) => [p.id, p]));
+  const ok = await new Promise((res) => sheet(`<h2>${kind === 'duplicates' ? 'Убрать дубликаты' : 'Убрать неудачные фото'}</h2>
+    <p class="muted" style="margin-top:0">Эти фото (${ids.length}) уйдут из книги в «Остальные». Файлы не удаляются: вернуть можно в один тап.</p>
+    <div class="grid small">${ids.map((i) => byId[i] ? `<div class="tile"><img src="${byId[i].thumb}" alt=""></div>` : '').join('')}</div>
+    <div class="two" style="margin-top:12px"><button class="btn line" data-c="no">Отмена</button><button class="btn" data-c="yes">Убрать (${ids.length})</button></div>`,
+    (root) => $$('[data-c]', root).forEach((b) => (b.onclick = () => { closeSheet(true); res(b.dataset.c === 'yes'); })), () => res(false)));
+  if (!ok) return;
   try {
     const r = await api(`/projects/${project.id}/cleanup`, { method: 'POST', body });
-    toast(r.removed ? `Убрано фото: ${r.removed}` : 'Нечего убирать');
+    toast(r.removed ? `Перенесено в «Остальные»: ${r.removed}` : 'Нечего убирать');
     await after();
   } catch (x) { toast(x.message); }
 }
@@ -511,7 +574,8 @@ async function stepPhotos(project) {
   <button class="rowbtn" data-act="params">${ic(productIcon(project))}<span class="g">${esc(project.product.title)}<small>${esc(paramsLabel(project))}</small></span>${ic('next')}</button>
   ${n ? `<div class="lead" style="margin-top:12px"><img src="${inc[0].proxy || inc[0].url}" alt="Первое фото проекта"></div>` : ''}
   <div id="up"></div>
-  ${n ? `<div class="row" style="margin:14px 0 10px"><button class="chip g" style="border:0;justify-content:flex-start;background:none;font-size:15px;padding-left:0" data-act="toggleedit">${editMode ? 'Готово' : 'Галерея · изменить порядок'}</button><span class="chip y" style="font-size:14px;padding:7px 13px">Выбрано ${n}</span></div>` : ''}
+  ${n ? `<div class="row" style="margin:14px 0 10px"><button class="chip g" style="border:0;justify-content:flex-start;background:none;font-size:15px;padding-left:0" data-act="toggleedit">${editMode ? 'Готово' : 'Галерея · изменить порядок'}</button><span class="chip y" style="font-size:14px;padding:7px 13px">${n} из ${min}+ фото</span></div>` : ''}
+  ${n ? `<p class="why" style="margin:-4px 0 10px">${project.product.kind === 'print' ? `Печатаем каждое фото: ${n} шт.` : `Нужно минимум ${min} фото. ${project.settings.pages ? `Страниц в ${project.product.kind === 'calendar' ? 'календаре: 12 месяцев' : `книге: ${project.settings.pages}`} — фото разложим по ним автоматически.` : ''}`}</p>` : ''}
   ${n ? cleanCard(project, chk, `#/project/${project.id}/check`) : ''}
   ${n && !cleanNums(chk).dup && !cleanNums(chk).bad && (dups || bad) ? `<a class="note y" style="display:block" href="#/project/${project.id}/check"><b>Проверка фото:</b> ${bad} ${plural(bad, 'фото', 'фото', 'фото')} требуют внимания. Посмотреть ›</a>` : ''}
   ${editMode ? '<p class="why" style="margin:0 0 8px">★ закрепить кадр: он получит отдельную страницу. ⊘ убрать из книги: фото останется в проекте, его можно вернуть. ✕ удалить навсегда.</p>' : ''}
@@ -591,10 +655,11 @@ async function stepEdit(project) {
   const base = () => { const b = clone(edits); delete b.filter; delete b.text; delete b.adjust; return b; };
   shell(`<div class="stage"><img id="stage" alt="Фото в редакторе" src="${ph.proxy || ph.url}">
     <button class="fab bk" data-act="back" aria-label="Назад к фотографиям">${ic('back')}</button>
-    <div class="fabs"><button class="fab" data-tab="crop" aria-label="Кадр">${ic('crop')}</button><button class="fab" data-tab="text" aria-label="Текст">${ic('text')}</button><button class="fab" data-tab="ai" aria-label="Улучшение">${ic('spark')}</button></div>
+    <div class="fabs"><button class="fab lbl" data-tab="crop" aria-label="Кадр">${ic('crop')}<small>Кадр</small></button><button class="fab lbl" data-tab="text" aria-label="Текст">${ic('text')}<small>Текст</small></button><button class="fab lbl" data-tab="ai" aria-label="Улучшение">${ic('spark')}<small>AI</small></button></div>
+    <span class="hint" id="shint">Зажмите фото — покажу оригинал</span>
     <span class="busy hide" id="busy">Обновляем…</span></div>
   <div class="strip" id="strip">${project.photos.map((p, i) => `<button class="${i === idx ? 'on' : ''}" data-i="${i}" aria-label="Фото ${i + 1}"><img src="${p.thumb}" alt=""></button>`).join('')}</div>
-  <div class="mini"><button data-act="undo">${ic('undo', 18)}Отменить</button><button data-act="reset">Сбросить</button><button id="cmp" aria-label="Удерживайте, чтобы увидеть оригинал">Держите: до</button></div>
+  <div class="mini"><button data-act="undo" title="Отменить последнее действие">${ic('undo', 18)}Отменить шаг</button><button data-act="reset" class="danger" title="Убрать все правки этого фото">Сбросить все правки</button></div>
   <div class="panel" id="panel"></div>
   <div class="dock"><div class="tabs4" id="tabs"><button data-tab="filters">${ic('filters')}Фильтры</button><button data-tab="text">${ic('text')}Текст</button><button data-tab="crop">${ic('frame')}Кадр</button><button data-tab="ai">${ic('spark')}AI</button></div>
   <button class="btn" data-act="next">${project.product.kind === 'calendar' ? 'Собрать календарь' : hasLayout(project) ? 'Собрать альбом' : 'Проверить фото'}</button>
@@ -626,7 +691,7 @@ async function stepEdit(project) {
     }, fast ? 500 : 160);
   };
   const commit = () => { const now = JSON.stringify(edits); if (now !== snap) { hist.push(snap); if (hist.length > 40) hist.shift(); snap = now; dirty = true; const s = $('#savest'); if (s) s.textContent = 'Есть несохранённые правки: сохраним при переходе'; } };
-  const setTab = (t) => { tab = t; $$('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); panel(); };
+  const setTab = (t) => { tab = t; $$('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); const h = $('#shint'); if (h) h.textContent = t === 'crop' ? 'Двигайте фото пальцем' : 'Зажмите фото — покажу оригинал'; panel(); };
   const chips = (items, cur, attr) => `<div class="opts">${items.map(([v, l]) => `<button type="button" class="opt ${cur === v ? 'on' : ''}" data-${attr}="${v}">${l}</button>`).join('')}</div>`;
   const slider = (label, attr, key, min, max, val, step = 1) => `<div class="ctl"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${val}" data-${attr}="${key}" aria-label="${label}"></div>`;
 
@@ -661,12 +726,13 @@ async function stepEdit(project) {
       const def = { ratio: 'orig', zoom: 1, x: 0.5, y: 0.5 };
       const c = edits.crop || def;
       box.innerHTML = `<label class="lb">Пропорции кадра</label>${chips([['orig', 'Оригинал'], ['1:1', '1:1'], ['4:5', '4:5'], ['3:2', '3:2'], ['2:3', '2:3'], ['16:9', '16:9']], c.ratio, 'cr')}
-      ${slider('Масштаб', 'cz', 'zoom', 1, 4, c.zoom, 0.05)}${slider('Влево-вправо', 'cx', 'x', 0, 1, c.x, 0.02)}${slider('Вверх-вниз', 'cy', 'y', 0, 1, c.y, 0.02)}
+      ${slider('Масштаб', 'cz', 'zoom', 1, 4, c.zoom, 0.05)}
+      <p class="why" style="margin:4px 0 0">Увеличьте масштаб или выберите пропорции, затем двигайте фото пальцем прямо на экране.</p>
       <div class="opts" style="margin-top:8px"><button class="opt" data-rot="270">⟲ Влево</button><button class="opt" data-rot="90">⟳ Вправо</button><button class="opt ${edits.flip ? 'on' : ''}" data-flip="1">⇋ Зеркало</button></div>
       <p class="muted">На экране видно ровно ту часть, что останется. Если после кадрирования пикселей станет мало для печати, предупредим на проверке.</p>`;
       const upd = (patch) => { const cur = { ...(edits.crop || def), ...patch }; if (cur.ratio === 'orig' && cur.zoom <= 1) delete edits.crop; else edits.crop = cur; };
       $$('[data-cr]', box).forEach((b) => (b.onclick = () => { upd({ ratio: b.dataset.cr }); commit(); refresh(); panel(); }));
-      [['cz', 'zoom'], ['cx', 'x'], ['cy', 'y']].forEach(([a, k]) => { const r = box.querySelector(`[data-${a}]`); r.oninput = () => { upd({ [k]: +r.value }); refresh(); }; r.onchange = commit; });
+      [['cz', 'zoom']].forEach(([a, k]) => { const r = box.querySelector(`[data-${a}]`); r.oninput = () => { upd({ [k]: +r.value }); refresh(); }; r.onchange = commit; });
       $$('[data-rot]', box).forEach((b) => (b.onclick = () => { const r = ((edits.rotate || 0) + +b.dataset.rot) % 360; if (r) edits.rotate = r; else delete edits.rotate; commit(); refresh(); }));
       box.querySelector('[data-flip]').onclick = () => { if (edits.flip) delete edits.flip; else edits.flip = true; commit(); refresh(); panel(); };
     } else {
@@ -710,16 +776,41 @@ async function stepEdit(project) {
   const leave = async (path) => { if (await save()) go(path); };
   $$('#tabs button, .fabs .fab').forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
   $$('#strip button').forEach((b) => (b.onclick = () => { if (+b.dataset.i !== idx) leave(`/project/${project.id}/edit?i=${b.dataset.i}&tab=${tab}`); }));
-  const cmp = $('#cmp'), show = (u) => { const st = $('#stage'); if (st) st.src = u; };
-  cmp.onpointerdown = (e) => { e.preventDefault(); show(ph.orig); };
-  ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => (cmp['on' + ev] = () => show(objUrl || ph.proxy || ph.url)));
+  /* Жесты на фото: во вкладке «Кадр» фото двигается пальцем; в остальных вкладках зажатие показывает оригинал (как в «Фото» на iPhone). */
+  const stage = $('#stage'), show = (u) => { const st = $('#stage'); if (st) { st.style.filter = ''; st.src = u; } };
+  let drag = null, holdT = null, holding = false;
+  stage.style.touchAction = 'none';
+  stage.oncontextmenu = (e) => e.preventDefault();
+  stage.onpointerdown = (e) => {
+    if (tab === 'crop') {
+      const c = edits.crop || { ratio: 'orig', zoom: 1, x: 0.5, y: 0.5 };
+      if (c.ratio === 'orig' && (c.zoom || 1) <= 1) return toast('Сначала увеличьте масштаб или выберите пропорции');
+      drag = { x: e.clientX, y: e.clientY, cx: c.x, cy: c.y, w: stage.clientWidth, h: stage.clientHeight, z: c.zoom || 1 };
+      stage.setPointerCapture(e.pointerId); return;
+    }
+    holdT = setTimeout(() => { holding = true; show(ph.orig); $('#shint').textContent = 'Оригинал'; }, 220);
+  };
+  stage.onpointermove = (e) => {
+    if (!drag) return;
+    const k = 1 / drag.z;  // чем сильнее увеличение, тем точнее сдвиг
+    const x = Math.min(1, Math.max(0, drag.cx - ((e.clientX - drag.x) / drag.w) * k));
+    const y = Math.min(1, Math.max(0, drag.cy - ((e.clientY - drag.y) / drag.h) * k));
+    edits.crop = { ...(edits.crop || { ratio: 'orig', zoom: 1 }), x: +x.toFixed(3), y: +y.toFixed(3) };
+    refresh();
+  };
+  const endPress = () => {
+    if (drag) { drag = null; commit(); return; }
+    clearTimeout(holdT);
+    if (holding) { holding = false; show(objUrl || ph.proxy || ph.url); refresh(); $('#shint').textContent = 'Зажмите фото — покажу оригинал'; }
+  };
+  ['onpointerup', 'onpointercancel', 'onpointerleave'].forEach((ev) => (stage[ev] = endPress));
   setTab(tab);
   const sel = $('#strip .on'); if (sel && sel.scrollIntoView) sel.scrollIntoView({ inline: 'center', block: 'nearest' });
   state.backFn = () => leave(`/project/${project.id}/photos`);
   state.ctx = {
     back: state.backFn,
     undo: () => { if (!hist.length) return toast('Нечего отменять'); edits = JSON.parse(hist.pop()); snap = JSON.stringify(edits); dirty = true; refresh(); panel(); },
-    reset: () => { if (!Object.keys(edits).length) return toast('Правок нет'); edits = {}; commit(); refresh(); panel(); toast('Правки сброшены. Вернуть: «Отменить»'); },
+    reset: () => { if (!Object.keys(edits).length) return toast('Правок нет'); edits = {}; commit(); refresh(); panel(); toast('Все правки фото сброшены. Вернуть: «Отменить шаг»'); },
     erase: async () => { if (await save()) eraseSheet(project, ph, async () => { await route(); }); },
     unerase: async (el) => { el.disabled = true; try { await api(`/projects/${project.id}/photos/${ph.id}/erase`, { method: 'DELETE' }); toast('Вернули фото как было'); await route(); } catch (x) { el.disabled = false; toast(x.message); } },
     tostudio: () => leave(`/project/${project.id}/ai?mode=create`),
@@ -782,7 +873,7 @@ async function stepAI(project) {
   async function drawEnhance() {
     if (!project.photos.length) { box.innerHTML = `${seg}${tip('robot', 'Сначала добавьте фото, и я помогу их улучшить.', 'ai0')}<a class="btn" href="#/project/${project.id}/photos">Добавить фотографии</a>`; return; }
     const ph = project.photos[idx];
-    box.innerHTML = `<div class="ba"><figure><img src="${ph.orig}" alt="Фото до улучшения"><figcaption>До</figcaption></figure><figure><img id="after" alt="Фото после улучшения"><figcaption>После</figcaption></figure>${ARROW}</div>
+    box.innerHTML = `<div class="ba"><figure><img src="${ph.orig}" alt="Фото до улучшения"><figcaption>До</figcaption></figure><figure><img id="after" alt="Фото после улучшения" hidden><span class="ph-load" id="afterld"><span class="spin"></span>Готовим результат…</span><figcaption>После</figcaption></figure>${ARROW}</div>
     ${seg}
     <div class="strip">${project.photos.map((p, i) => `<button class="${i === idx ? 'on' : ''}" data-i="${i}" aria-label="Фото ${i + 1}"><img src="${p.thumb}" alt=""></button>`).join('')}</div>
     <label class="lb">Стиль</label>${styleChips(STYLES, style, 'st')}
@@ -793,8 +884,8 @@ async function stepAI(project) {
     $$('[data-st]', box).forEach((b) => (b.onclick = () => { style = b.dataset.st; drawEnhance(); }));
     try {
       const url = await apiBlob(`/projects/${project.id}/photos/${ph.id}/preview`, { edits: { auto: true, ...(style !== 'none' ? { filter: style } : {}) }, size: 700 });
-      if (afterUrl) URL.revokeObjectURL(afterUrl); afterUrl = url; const im = $('#after'); if (im) im.src = url;
-    } catch (x) { toast(x.message); }
+      if (afterUrl) URL.revokeObjectURL(afterUrl); afterUrl = url; const im = $('#after'); if (im) { im.onload = () => { im.hidden = false; const l = $('#afterld'); if (l) l.remove(); }; im.src = url; }
+    } catch (x) { const l = $('#afterld'); if (l) l.innerHTML = `Не удалось подготовить: ${esc(x.message)}`; }
   }
   function drawCreate() {
     const on = state.caps.ai_generate;
@@ -881,7 +972,8 @@ async function stepLayout(project) {
     if (project.product.kind === 'book') {
       try { const sg = await api(`/projects/${project.id}/suggest-pages`); if (sg.pages && sg.pages !== project.settings.pages) await api('/projects/' + project.id, { method: 'PATCH', body: { settings: { pages: sg.pages } } }); } catch { /* оставим число страниц как было */ }
     }
-    await api(`/projects/${project.id}/automaket?sort=date`, { method: 'POST' });
+    const th = store.get('pp_theme_' + project.id) || '';
+    await api(`/projects/${project.id}/automaket?sort=date${th ? '&theme=' + th : ''}`, { method: 'POST' });
     project = await api('/projects/' + project.id); fresh = true;
   }
   const chk = await api(`/projects/${project.id}/check`);
@@ -1313,10 +1405,7 @@ async function route() {
     else if (a === 'new' || a === 'catalog' || a === 'product') await viewNew();
     else if (a === 'projects') await viewProjects();
     else if (a === 'project') await viewProject(b, c || 'photos');
-    else if (a === 'cart') {
-      const ps = await api('/projects'); const d = ps.find((x) => x.status === 'draft' && x.photos_count >= x.min_photos);
-      if (d) go(`/project/${d.id}/cart`); else { toast('Корзина пуста: сначала соберите проект'); go(ps.find((x) => x.status === 'draft') ? '/projects' : '/new'); }
-    }
+    else if (a === 'cart') await viewCart();
     else if (a === 'orders') await viewOrders();
     else if (a === 'order') await viewOrder(b);
     else if (a === 'profile') await viewProfile();
@@ -1329,6 +1418,7 @@ const ACTS = {
   reload: () => route(),
   closesheet: () => closeSheet(),
   onboard: () => maybeOnboarding(true),
+  assistant: () => openAssistant(),
   design: (el) => { if (window.ppDesign && window.ppDesign.get() !== el.dataset.v) window.ppDesign.set(el.dataset.v); },
   account: (el, ev) => { if (ev) ev.preventDefault(); accountSheet(el.dataset.mode || 'register'); },
   guest: async (el) => { el.disabled = true; try { await auth('/auth/guest', {}); } catch (e) { el.disabled = false; toast(e.message); } },
@@ -1364,3 +1454,6 @@ window.addEventListener('hashchange', route);
   route();
 })();
 })();
+
+/* Кнопка «назад» в шапке: если адрес уже совпадает (например, после ошибки), всё равно перерисовываем экран. */
+document.addEventListener('click', (e) => { const a = e.target.closest('a[data-back]'); if (a && location.hash === a.getAttribute('href')) { e.preventDefault(); route(); } });

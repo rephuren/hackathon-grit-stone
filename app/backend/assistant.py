@@ -9,6 +9,7 @@
     отвечает DemoProvider, пользователь не остаётся без ответа.
 Действия (actions) — только ссылки внутри приложения: помощник ничего не заказывает и не удаляет сам.
 """
+import json
 import os
 import re
 
@@ -142,9 +143,58 @@ class MaryProvider:
         return {"reply": str(data.get("reply", ""))[:1500], "actions": actions[:4]}
 
 
+ACTIONS = {  # действия, которые модели разрешено предложить: только ссылки внутри приложения
+    "new": ("Создать проект", "#/new"), "calendar": ("Создать календарь", "#/new?kind=calendar"),
+    "print": ("Печать фото", "#/new?kind=print"), "orders": ("Мои заказы", "#/orders"),
+    "projects": ("Мои проекты", "#/projects"), "cart": ("Корзина", "#/cart"), "profile": ("Профиль", "#/profile"),
+}
+
+
+class MarySimProvider:
+    """Имитация Mary на открытой языковой модели через API, совместимый с OpenAI (Groq, OpenRouter, локальная Ollama).
+    Модель получает роль агента picPac, проверенные факты (из DemoProvider и данных приложения) и обезличенный контекст.
+    Отвечает JSON {reply, actions}; действия — только из белого списка ACTIONS. Реальная Mary заменяет её переменными MARY_*."""
+    name = "mary-sim"
+
+    def __init__(self, base: str, key: str, model: str):
+        self.base, self.key, self.model = base.rstrip("/"), key, model
+
+    def answer(self, message: str, ctx: dict) -> dict:
+        facts = DemoProvider().answer(message, ctx)["reply"]  # проверенные факты: модель их пересказывает, а не выдумывает
+        safe = {"черновик": ctx.get("draft") and {k: ctx["draft"][k] for k in ("product", "photos", "min_photos")},
+                "заказы": [{"номер": o["number"], "статус": STATUS_RU.get(o["status"], o["status"]), "сумма": _money(o["total"])}
+                           for o in (ctx.get("orders") or [])[:3]],
+                "цены_от": {p["title"]: _money(p["from"]) for p in ctx.get("products", [])}}
+        system = ("Ты Mary — ИИ-агент сервиса фотопечати picPac внутри мобильного приложения. Отвечай по-русски, кратко (до 3 предложений), "
+                  "дружелюбно. Используй ТОЛЬКО факты ниже и контекст пользователя; если ответа нет — предложи обратиться в поддержку из карточки заказа. "
+                  "Не выдумывай цены, сроки и статусы. Ты не оформляешь и не удаляешь заказы сама, а подсказываешь шаги. "
+                  f"Верни JSON: {{\"reply\": \"текст\", \"actions\": [до 2 ключей из {list(ACTIONS)}]}}.\n"
+                  f"Проверенные факты: {facts}\nКонтекст пользователя: {safe}")
+        headers = {"Authorization": f"Bearer {self.key}"} if self.key else {}
+        r = httpx.post(f"{self.base}/chat/completions", headers=headers, timeout=12, json={
+            "model": self.model, "temperature": 0.3, "max_tokens": 300, "response_format": {"type": "json_object"},
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": message[:500]}]})
+        r.raise_for_status()
+        raw = r.json()["choices"][0]["message"]["content"] or ""
+        try:
+            data = json.loads(raw[raw.find("{"): raw.rfind("}") + 1])
+        except ValueError:
+            data = {"reply": raw}
+        reply = str(data.get("reply") or "").strip()
+        if not reply:
+            raise ValueError("пустой ответ модели")
+        acts = [ACTIONS[a] for a in (data.get("actions") or []) if isinstance(a, str) and a in ACTIONS][:2]
+        return {"reply": reply[:1200], "actions": [{"label": l, "href": h} for l, h in acts]}
+
+
 def provider():
     url, key = os.environ.get("MARY_API_URL", "").strip(), os.environ.get("MARY_API_KEY", "").strip()
-    return MaryProvider(url, key) if url and key else DemoProvider()
+    if url and key:
+        return MaryProvider(url, key)
+    base, model = os.environ.get("LLM_BASE_URL", "").strip(), os.environ.get("LLM_MODEL", "").strip()
+    if base and model:
+        return MarySimProvider(base, os.environ.get("LLM_API_KEY", "").strip(), model)
+    return DemoProvider()
 
 
 def ask(message: str, ctx: dict) -> dict:

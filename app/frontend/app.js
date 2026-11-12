@@ -316,7 +316,7 @@ function openAssistant() {
       try {
         const r = await api('/assistant', { method: 'POST', body: { message: text } });
         chatLog[chatLog.length - 1] = { text: r.reply, actions: r.actions };
-        $('#asmode', root).textContent = r.provider === 'mary' ? 'Отвечает Mary' : 'Демо-режим: отвечаю по данным приложения, Mary подключится после выдачи доступов';
+        $('#asmode', root).textContent = r.provider === 'mary' ? 'Отвечает Mary' : r.provider === 'mary-sim' ? 'Mary (имитация на открытой ИИ-модели)' : 'Демо-режим: отвечаю по данным приложения';
       } catch (x) { chatLog[chatLog.length - 1] = { text: 'Не получилось ответить: ' + x.message }; }
       box.innerHTML = draw(); scroll(); bind();
     };

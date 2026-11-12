@@ -736,3 +736,36 @@ def test_assistant_falls_back_when_mary_unreachable(client, anna, monkeypatch):
     monkeypatch.setenv("MARY_API_KEY", "test-key")
     r = client.post("/api/assistant", json={"message": "Сколько нужно фото?"}, headers=anna).json()
     assert r["provider"] == "demo-fallback" and "минимум" in r["reply"]
+
+
+def test_assistant_mary_sim_uses_openai_compatible_llm(client, anna, monkeypatch):
+    """Имитация Mary: ответ модели проходит белый список действий; при сбое модели отвечает демо."""
+    from backend import assistant as AS
+    monkeypatch.delenv("MARY_API_URL", raising=False)
+    monkeypatch.setenv("LLM_BASE_URL", "http://llm.test/v1")
+    monkeypatch.setenv("LLM_MODEL", "test-model")
+    seen = {}
+
+    class R:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"choices": [{"message": {"content": '{"reply": "Календарю нужно 12 фото.", "actions": ["calendar", "rm -rf", "orders"]}'}}]}
+
+    def fake_post(url, **kw):
+        seen["url"], seen["body"] = url, kw["json"]
+        return R()
+
+    monkeypatch.setattr(AS.httpx, "post", fake_post)
+    r = client.post("/api/assistant", json={"message": "Сколько фото для календаря?"}, headers=anna).json()
+    assert r["provider"] == "mary-sim" and r["reply"] == "Календарю нужно 12 фото."
+    assert [a["href"] for a in r["actions"]] == ["#/new?kind=calendar", "#/orders"]
+    assert seen["url"] == "http://llm.test/v1/chat/completions"
+    assert "Mary" in seen["body"]["messages"][0]["content"] and "+375" not in str(seen["body"])
+
+    def boom(url, **kw):
+        raise httpx.ConnectError("нет сети")
+
+    monkeypatch.setattr(AS.httpx, "post", boom)
+    assert client.post("/api/assistant", json={"message": "Где мой заказ?"}, headers=anna).json()["provider"] == "demo-fallback"

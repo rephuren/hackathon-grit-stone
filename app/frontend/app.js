@@ -203,7 +203,7 @@ function heroHtml() {
 const LOGIN_RE = /^[A-Za-z0-9_.-]{3,32}$/;
 const passwordInput = (id, autocomplete) => `<div class="password-field"><input id="${id}" type="password" autocomplete="${autocomplete}" maxlength="128" required><button type="button" class="password-toggle" data-password="${id}" aria-label="Показать пароль" aria-pressed="false">Показать</button></div>`;
 function bindPasswordToggles(root = document) {
-  $('[data-password]', root).forEach((btn) => {
+  Array.from(root.querySelectorAll('[data-password]')).forEach((btn) => {
     btn.onclick = () => {
       const input = root.querySelector('#' + btn.dataset.password);
       const show = input.type === 'password';

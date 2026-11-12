@@ -394,3 +394,5 @@ h2.sec{font-size:18px;margin:16px 0 8px}
 .uplist li.ok i{background:#d8f0e0;color:#146c43}.uplist li.err i{background:#f8d7d3;color:#b42318}.uplist li.err small{color:#b42318}
 .uplist li i .spin{margin:0;width:14px;height:14px}
 .note.bad .uplist{margin:8px 0}
+
+.card.cmd{border:2px solid var(--y)}.card.cmd b svg{vertical-align:-3px}

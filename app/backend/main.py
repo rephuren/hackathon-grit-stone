@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 
 from . import assistant as AS
 from . import catalog as C
+from . import editcmd as EC
 from . import db as D
 from . import imagegen as G
 from . import imaging as I
@@ -375,6 +376,19 @@ def templates():
 
 class AskIn(BaseModel):
     message: str = Field(min_length=1, max_length=500)
+
+
+class EditCmdIn(BaseModel):
+    text: str = Field(min_length=2, max_length=300)
+
+
+@api.post("/edit-command")
+def edit_command(body: EditCmdIn, user: dict = Depends(current_user)):
+    """Правка фото словами: текст -> операции редактора (см. backend/editcmd.py). Фото в модель не отправляется."""
+    res = EC.parse(body.text)
+    with D.db() as c:
+        D.audit(c, user, "edit_command", "editor", "ok", f"engine={res['engine']} ops={','.join(o['op'] for o in res['ops'])}")
+    return res
 
 
 @api.post("/assistant")

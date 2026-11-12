@@ -761,11 +761,50 @@ async function stepEdit(project) {
       box.querySelector('[data-flip]').onclick = () => { if (edits.flip) delete edits.flip; else edits.flip = true; commit(); refresh(); panel(); };
     } else {
       const bg = edits.bg ? edits.bg.mode : 'off';
-      box.innerHTML = `<div class="card" style="margin-top:10px"><b>Улучшить качество</b>${state.caps.upscale ? `<p class="muted">Нейросеть добавит чёткости и увеличит фото: сейчас ${ph.width}×${ph.height} px. Обработка на нашем сервере, фото никуда не передаётся. Занимает несколько секунд.</p>${ph.retouched ? '<div class="note y">После удаления объектов увеличить фото нельзя. Сначала верните исходное в блоке «Убрать объект».</div>' : ph.upscaled ? '<div class="note ok">Улучшение применено.</div><div id="upcmp"><span class="muted">Готовим сравнение…</span></div><button class="btn sm line" data-act="unup">Вернуть исходное качество</button>' : '<div class="two"><button class="btn sm" data-act="up2">Увеличить ×2</button><button class="btn sm line" data-act="up4">Увеличить ×4</button></div>'}` : '<p class="muted">В этой сборке недоступно: модель не установлена (см. README).</p>'}</div>
+      box.innerHTML = `<div class="card cmd" style="margin-top:10px"><b>${ic('spark', 18)} Изменить фото словами</b>
+      <p class="muted" style="margin:4px 0 8px">Напишите, что сделать с этим фото, — я применю нужные инструменты. Отменить можно кнопкой «Отменить шаг».</p>
+      <form id="cmdf" class="askrow"><input id="cmdq" type="text" maxlength="300" placeholder="Например: сделай ярче и тёплым" autocomplete="off" aria-label="Что сделать с фото"><button class="btn sm" type="submit">Применить</button></form>
+      <div class="opts" style="margin-top:8px">${['Сделай ярче', 'Чёрно-белое', 'Убери фон', 'Обрежь квадратом', 'Улучши качество'].map((t) => `<button type="button" class="opt" data-cmd="${t}">${t}</button>`).join('')}</div><div id="cmdmsg"></div></div>
+      <div class="card" style="margin-top:10px"><b>Улучшить качество</b>${state.caps.upscale ? `<p class="muted">Нейросеть добавит чёткости и увеличит фото: сейчас ${ph.width}×${ph.height} px. Обработка на нашем сервере, фото никуда не передаётся. Занимает несколько секунд.</p>${ph.retouched ? '<div class="note y">После удаления объектов увеличить фото нельзя. Сначала верните исходное в блоке «Убрать объект».</div>' : ph.upscaled ? '<div class="note ok">Улучшение применено.</div><div id="upcmp"><span class="muted">Готовим сравнение…</span></div><button class="btn sm line" data-act="unup">Вернуть исходное качество</button>' : '<div class="two"><button class="btn sm" data-act="up2">Увеличить ×2</button><button class="btn sm line" data-act="up4">Увеличить ×4</button></div>'}` : '<p class="muted">В этой сборке недоступно: модель не установлена (см. README).</p>'}</div>
       <div class="card" style="margin-top:10px"><div class="row"><span class="g"><b>Автоулучшение</b><br><span class="muted">Выравнивает свет и контраст, добавляет резкость. Обычная обработка, не нейросеть.</span></span><button class="btn sm ${edits.auto ? '' : 'line'}" data-auto="1">${edits.auto ? '✓ Вкл.' : 'Включить'}</button></div></div>
       <div class="card" style="margin-top:10px"><b>Убрать объект</b>${state.caps.object_removal ? `<p class="muted">Закрасьте лишнее: прохожего, мусор, провод. Нейросеть дорисует фон. Обработка на нашем сервере, фото никуда не передаётся. Занимает несколько секунд.</p>${ph.retouched ? '<div class="note ok">Объекты убраны.</div><div class="two"><button class="btn sm" data-act="erase">Убрать ещё</button><button class="btn sm line" data-act="unerase">Вернуть как было</button></div>' : '<button class="btn sm" data-act="erase">Закрасить и убрать</button>'}` : '<p class="muted">В этой сборке недоступно: модель не установлена (см. README).</p>'}</div>
       <div class="card" style="margin-top:10px"><b>Убрать фон</b>${state.caps.bg_removal ? `<p class="muted">Нейросеть вырезает объект прямо на нашем сервере, фото никуда не передаётся.</p>${chips([['off', 'Выкл.'], ['white', 'Белый'], ['yellow', 'Жёлтый'], ['black', 'Чёрный'], ['blur', 'Размытие']], bg, 'bg')}<div id="bgmsg"></div>` : '<p class="muted">В этой сборке недоступно: модель не установлена (см. README).</p>'}</div>
-      <a class="btn line" style="margin-top:10px" data-act="tostudio">${ic('spark')}AI-студия: создать новый кадр</a>`;
+      <a class="btn line" style="margin-top:10px" data-act="tostudio">${ic('spark')}Создать новое фото по описанию</a>`;
+      const NAMES = { warm: 'тёплый', cool: 'холодный', film: 'плёнка', bw: 'чёрно-белый', vivid: 'яркий', retro: 'ретро', cinema: 'кино', illustration: 'иллюстрация', none: 'без фильтра' };
+      const runCmd = async (text) => {
+        const msg = $('#cmdmsg', box); text = (text || '').trim(); if (!text) return;
+        msg.innerHTML = '<p class="muted"><span class="spin"></span>Разбираю команду…</p>';
+        let r; try { r = await api('/edit-command', { method: 'POST', body: { text } }); } catch (x) { msg.innerHTML = `<div class="note bad">${esc(x.message)}</div>`; return; }
+        const done = [], later = [];
+        for (const o of r.ops) {
+          if (o.op === 'filter') { if (o.name === 'none') delete edits.filter; else edits.filter = o.name; done.push('фильтр «' + NAMES[o.name] + '»'); }
+          else if (o.op === 'adjust') { const a = { ...(edits.adjust || {}) }; ['brightness', 'contrast', 'saturation'].forEach((k) => { if (o[k]) a[k] = Math.max(-100, Math.min(100, (a[k] || 0) + o[k])); }); edits.adjust = a; done.push(o.brightness ? (o.brightness > 0 ? 'ярче' : 'темнее') : o.contrast ? 'контраст' : 'насыщенность'); }
+          else if (o.op === 'auto') { edits.auto = true; done.push('автоулучшение'); }
+          else if (o.op === 'crop') { edits.crop = { ratio: o.ratio, zoom: 1, x: 0.5, y: 0.5 }; done.push('кадр ' + o.ratio); }
+          else if (o.op === 'rotate') { const d = ((edits.rotate || 0) + o.deg) % 360; if (d) edits.rotate = d; else delete edits.rotate; done.push(o.deg === 90 ? 'поворот вправо' : 'поворот влево'); }
+          else if (o.op === 'flip') { if (edits.flip) delete edits.flip; else edits.flip = true; done.push('зеркально'); }
+          else if (o.op === 'text') { edits.text = { value: o.value, pos: 'bottom', color: 'white', size: 7 }; done.push('надпись «' + o.value + '»'); }
+          else if (o.op === 'reset') { edits = {}; done.push('правки сброшены'); }
+          else later.push(o);
+        }
+        if (done.length) { commit(); refresh(); }
+        const bgOp = later.find((o) => o.op === 'bg');
+        if (bgOp && state.caps.bg_removal) {
+          try { if (!ph.has_mask) { msg.innerHTML = '<p class="muted"><span class="spin"></span>Вырезаю объект…</p>'; const p = await api(`/projects/${project.id}/photos/${ph.id}/bg-mask`, { method: 'POST' }); project.photos = p.photos; ph = p.photos[idx]; }
+            edits.bg = { mode: bgOp.mode }; commit(); refresh(); done.push(bgOp.mode === 'blur' ? 'фон размыт' : 'фон убран'); } catch (x) { done.push('фон: ' + x.message); }
+        }
+        const unsup = later.some((o) => o.op === 'unsupported');
+        const parts = [];
+        if (done.length) parts.push(`<div class="note ok"><b>Готово:</b> ${esc(done.join(', '))}. Не понравилось — «Отменить шаг».</div>`);
+        if (unsup) parts.push('<div class="note y">Добавлять новые предметы и менять людей на фото я пока не умею: эта функция в разработке. Могу поменять свет, цвет, фон, кадр и надпись.</div>');
+        if (!r.ops.length) parts.push('<div class="note y">Не понял, что сделать. Попробуйте: «сделай ярче», «чёрно-белое», «убери фон», «обрежь квадратом».</div>');
+        if (later.some((o) => o.op === 'upscale')) parts.push('<button class="btn sm" data-act="up2">Улучшить качество ×2</button>');
+        if (later.some((o) => o.op === 'erase')) parts.push('<button class="btn sm" data-act="erase">Закрасить и убрать объект</button>');
+        msg.innerHTML = parts.join('');
+        if (!later.some((o) => o.op === 'upscale' || o.op === 'erase')) { const keep = msg.innerHTML; panel(); const m2 = $('#cmdmsg'); if (m2) m2.innerHTML = keep; }
+      };
+      $('#cmdf', box).onsubmit = (e) => { e.preventDefault(); runCmd($('#cmdq', box).value); };
+      $$('[data-cmd]', box).forEach((b) => (b.onclick = () => runCmd(b.dataset.cmd)));
       if (ph.upscaled && !ph.retouched && box.querySelector('#upcmp')) {
         api(`/projects/${project.id}/photos/${ph.id}/upscale-compare`).then((c) => {
           const el = box.querySelector('#upcmp'); if (!el) return;
@@ -903,7 +942,7 @@ async function stepAI(project) {
     <label class="lb">Стиль</label>${styleChips(STYLES, style, 'st')}
     ${tip('robot', 'Подберу свет и контраст, сверху добавлю стиль. Это обычная обработка: оригинал сохранится.', 'ai1')}
     <button class="btn" data-act="enh">Применить к фото</button>
-    <div class="card soon-card" aria-disabled="true"><div class="row"><span class="g"><b>Изменить фото словами</b><span class="chip soon">Скоро</span><br><span class="muted">Например: «добавь шапку», «сделай зимним». Функция в разработке: подбираем модель, которая меняет только нужное и сохраняет людей на фото.</span></span></div></div>
+    <div class="card soon-card" aria-disabled="true"><div class="row"><span class="g"><b>Добавлять предметы словами</b><span class="chip soon">Скоро</span><br><span class="muted">Например: «добавь шапку». Свет, цвет, фон, кадр и надпись словами уже меняются в редакторе: вкладка AI → «Изменить фото словами».</span></span></div></div>
     ${state.caps.upscale ? `<button class="btn line" data-act="upq">${ic('spark')}Улучшить качество (AI) · ${ph.width}×${ph.height}</button><p class="why">Нейросеть увеличит и сделает фото чётче. Подойдёт для маленьких и смазанных снимков.</p>` : ''}`;
     $$('[data-i]', box).forEach((b) => (b.onclick = () => go(`/project/${project.id}/ai?mode=enhance&i=${b.dataset.i}`)));
     $$('[data-st]', box).forEach((b) => (b.onclick = () => { style = b.dataset.st; drawEnhance(); }));

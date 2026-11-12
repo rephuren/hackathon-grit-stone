@@ -773,3 +773,15 @@ def test_assistant_mary_sim_uses_openai_compatible_llm(client, anna, monkeypatch
 
     monkeypatch.setattr(AS.httpx, "post", boom)
     assert client.post("/api/assistant", json={"message": "Где мой заказ?"}, headers=anna).json()["provider"] == "demo-fallback"
+
+
+def test_edit_command_rules_without_network(client, anna, monkeypatch):
+    """Правка фото словами без сети: команды разбираются правилами, новые предметы честно не поддерживаются."""
+    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    r = client.post("/api/edit-command", json={"text": "сделай ярче и чёрно-белым"}, headers=anna).json()
+    assert r["engine"] == "rules"
+    assert {"op": "filter", "name": "bw"} in r["ops"] and any(o["op"] == "adjust" and o["brightness"] > 0 for o in r["ops"])
+    r = client.post("/api/edit-command", json={"text": "добавь надпись «Лето 2026» и обрежь квадратом"}, headers=anna).json()
+    assert {"op": "text", "value": "Лето 2026"} in r["ops"] and {"op": "crop", "ratio": "1:1"} in r["ops"]
+    assert client.post("/api/edit-command", json={"text": "добавь мне шапку"}, headers=anna).json()["ops"] == [{"op": "unsupported"}]
+    assert client.post("/api/edit-command", json={"text": "ярче"}).status_code == 401

@@ -137,6 +137,7 @@ def drill(code: str, period: str = "12w", dept: str = "", product: str = "", use
             raise _err(404, "not_found", "Показатель не найден")
         orders = PD.order_rows(c, period, product)
         details = []
+        order_details = []
         explanation = "Отклонение не требует отдельного объяснения."
         if code == "defect_rate":
             rows = c.execute(
@@ -144,13 +145,24 @@ def drill(code: str, period: str = "12w", dept: str = "", product: str = "", use
                 "FROM pulse_production GROUP BY shift,area ORDER BY bad DESC"
             ).fetchall()
             details = [dict(r) for r in rows]
+            q = ("SELECT o.id,o.order_date,o.product,o.channel,o.amount_byn,o.currency,"
+                 "p.shift,p.area,p.defects,p.reprints,p.downtime_min "
+                 "FROM pulse_production p JOIN pulse_orders o ON o.id=p.order_id "
+                 "WHERE o.order_date>=? AND (p.defects>0 OR p.reprints>0)")
+            args = [PD.period_start(period)]
+            if product:
+                q += " AND o.product=?"
+                args.append(product)
+            q += " ORDER BY (p.defects+p.reprints) DESC,o.order_date DESC LIMIT 30"
+            order_details = [dict(r) for r in c.execute(q, args)]
             top = details[0] if details else {"shift": "-", "area": "-", "bad": 0}
             explanation = (f"Красное отклонение локализовано: участок «{top['area']}», смена {top['shift']} "
                            f"дала {top['bad']} случаев брака/перепечатки. В синтетике заложен рост простоев этой смены.")
         elif code in ("revenue", "avg_check", "on_time", "queue", "lead_time"):
-            details = orders[-30:]
+            order_details = orders[-30:]
         return {"kpi": item, "levels": {"dept": item["dept"], "product": product or "Все продукты",
-                                          "orders": details}, "explanation": explanation}
+                                          "causes": details, "orders": order_details},
+                "explanation": explanation}
 
 
 class DecisionIn(BaseModel):
@@ -232,6 +244,9 @@ def patch_decision(did: int, body: DecisionPatch, user=Depends(pulse_user)):
                   (did, user["id"], action, json.dumps(before, ensure_ascii=False),
                    json.dumps(after, ensure_ascii=False), D.now_iso()))
         D.audit(c, user, "pulse_decision_update", f"decision:{did}", "ok", action)
+        if action == "verified":
+            recalculated = calculate_kpis(c, "12w", after["dept"], "")
+            after["verification_kpi"] = next((x for x in recalculated if x["code"] == after["kpi_code"]), None)
         return after
 
 

@@ -59,6 +59,7 @@ def test_filters_and_red_drill(client):
     assert body["kpi"]["status"] == "red"
     assert "смена" in body["explanation"].lower()
     assert body["levels"]["orders"]
+    assert {"id", "shift", "area", "defects"} <= set(body["levels"]["orders"][0])
 
 
 def test_decision_create_patch_logs_and_audit(client):
@@ -80,6 +81,7 @@ def test_decision_create_patch_logs_and_audit(client):
     patched = client.patch(f"/api/pulse/decisions/{did}", headers=h, json={"status": "verified"})
     assert patched.status_code == 200
     assert patched.json()["status"] == "verified"
+    assert patched.json()["verification_kpi"]["code"] == "defect_rate"
     with D.db() as c:
         assert c.execute("SELECT COUNT(*) FROM pulse_decision_log WHERE decision_id=?", (did,)).fetchone()[0] == 2
         assert c.execute("SELECT COUNT(*) FROM audit WHERE object=? AND action='pulse_decision_update'", (f"decision:{did}",)).fetchone()[0] == 1

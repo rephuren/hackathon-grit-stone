@@ -212,7 +212,8 @@ def test_preflight_and_full_order_flow(client, anna):
     assert first.status_code == 200, first.text
     again = client.post("/api/orders", json=body, headers=key)  # безопасный повтор
     assert again.json()["id"] == first.json()["id"] and again.json()["replayed"] is True
-    assert len(client.get("/api/orders", headers=anna).json()) == 1
+    # повтор не создал дубликат: заказ с этим id ровно один (общая БД теста, у anna могут быть и другие заказы)
+    assert sum(1 for o in client.get("/api/orders", headers=anna).json() if o["id"] == first.json()["id"]) == 1
     # проект заблокирован после заказа
     assert client.post(f"/api/projects/{pid}/photos", files=files(("x.jpg", jpeg(noise()))), headers=anna).status_code == 409
 

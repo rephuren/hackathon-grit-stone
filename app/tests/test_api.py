@@ -727,7 +727,7 @@ def test_assistant_demo_answers_with_user_context(client, anna, monkeypatch):
     r = client.post("/api/assistant", json={"message": "Где мой заказ?"}, headers=anna).json()
     assert r["reply"] and all(a.get("href", "#/").startswith("#/") for a in r["actions"])
     assert "минимум" in client.post("/api/assistant", json={"message": "Сколько нужно фото?"}, headers=anna).json()["reply"]
-    assert "шаблон" in client.post("/api/assistant", json={"message": "Какие есть шаблоны?"}, headers=anna).json()["reply"].lower()
+    assert "на свадьбу" in client.post("/api/assistant", json={"message": "Какие есть шаблоны?"}, headers=anna).json()["reply"].lower()
     assert client.post("/api/assistant", json={"message": ""}, headers=anna).status_code == 422
     assert client.post("/api/assistant", json={"message": "привет"}).status_code == 401
 

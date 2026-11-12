@@ -391,7 +391,8 @@ def assistant(body: AskIn, user: dict = Depends(current_user)):
                          "photos": len(photos_of(c, r["id"], True))}
         orders = [{"id": r["id"], "number": f"PP-{r['id']:06d}", "status": r["status"], "total": r["total_kop"]}
                   for r in c.execute("SELECT id, status, total_kop FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 3", (user["id"],))]
-        ctx = {"draft": draft, "orders": orders,
+        tp = templates()
+        ctx = {"draft": draft, "orders": orders, "templates": [{"title": t["title"], "price_from": t["price_from"]} for t in tp],
                "products": [{"title": p["title"], "from": _price_from(p)} for p in prods]}
         res = AS.ask(body.message, ctx)
         D.audit(c, user, "assistant", "assistant", "ok", f"provider={res['provider']} len={len(body.message)}")

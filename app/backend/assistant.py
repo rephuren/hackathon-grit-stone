@@ -27,6 +27,7 @@ class DemoProvider:
     name = "demo"
 
     RULES = [
+        ("templates", r"шаблон|свадьб|выпускн|новый год|нов[ыо]м год|крещен|love ?story|лав ?стори|день рождени|детск|класс|путешеств|семейн|событи|повод|оформлен"),
         ("order", r"заказ|статус|где мой|трек|доставк[аи] заказ"),
         ("photos", r"(сколько|минимум|мало|нужно|хватит)[^?]*фото|фото[^?]*(нужно|минимум|хватит)|страниц"),
         ("price", r"цен|стоит|стоимост|сколько стоит|дорого"),
@@ -37,7 +38,6 @@ class DemoProvider:
         ("book", r"фотокниг|альбом|книг"),
         ("print", r"печат|распечат"),
         ("quality", r"качеств|размыт|темн|улучш|чётк|четк"),
-        ("templates", r"шаблон|свадьб|выпускн|оформлен|тем[аы]"),
         ("data", r"удал(ить|и) (мои )?данн|персональн|аккаунт"),
         ("support", r"поддержк|оператор|человек|жалоб|проблем"),
         ("hello", r"^(привет|здравств|добр|хай|hello|hi)\b"),
@@ -103,7 +103,9 @@ class DemoProvider:
                 "actions": []}
 
     def _templates(self, ctx):
-        return {"reply": "Есть готовые шаблоны: свадьба, выпускной, детский альбом, путешествие, праздник. Выберите карточку в каталоге — оформление применится при сборке макета.",
+        ts = ctx.get("templates") or []
+        lst = "; ".join(f"{t['title']} — от {_money(t['price_from'])}" for t in ts) or "свадьба, выпускной, дети, путешествия, праздники"
+        return {"reply": f"Фотокниги по событиям: {lst}. Выберите карточку в каталоге — оформление применится при сборке макета.",
                 "actions": [{"label": "Шаблоны", "href": "#/new"}]}
 
     def _data(self, ctx):
@@ -167,13 +169,16 @@ class MarySimProvider:
                 "цены_от": {p["title"]: _money(p["from"]) for p in ctx.get("products", [])}}
         system = ("Ты Mary — ИИ-агент сервиса фотопечати picPac внутри мобильного приложения. Отвечай по-русски, кратко (до 3 предложений), "
                   "дружелюбно. Используй ТОЛЬКО факты ниже и контекст пользователя; если ответа нет — предложи обратиться в поддержку из карточки заказа. "
-                  "Не выдумывай цены, сроки и статусы. Ты не оформляешь и не удаляешь заказы сама, а подсказываешь шаги. "
+                  "Не выдумывай цены, сроки и статусы. Предлагай только то, что подходит к вопросу (например, на свадьбу — фотокнигу на свадьбу, а не выпускной). Ты не оформляешь и не удаляешь заказы сама, а подсказываешь шаги. "
                   f"Верни JSON: {{\"reply\": \"текст\", \"actions\": [до 2 ключей из {list(ACTIONS)}]}}.\n"
                   f"Проверенные факты: {facts}\nКонтекст пользователя: {safe}")
         headers = {"Authorization": f"Bearer {self.key}"} if self.key else {}
-        r = httpx.post(f"{self.base}/chat/completions", headers=headers, timeout=12, json={
-            "model": self.model, "temperature": 0.3, "max_tokens": 300, "response_format": {"type": "json_object"},
-            "messages": [{"role": "system", "content": system}, {"role": "user", "content": message[:500]}]})
+        body = {"model": self.model, "temperature": 0.3, "max_tokens": 400, "response_format": {"type": "json_object"},
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": message[:500]}]}
+        r = httpx.post(f"{self.base}/chat/completions", headers=headers, timeout=12, json=body)
+        if r.status_code == 400:  # модель не уложилась в строгий JSON: повторяем без строгого формата и разбираем текст
+            body.pop("response_format")
+            r = httpx.post(f"{self.base}/chat/completions", headers=headers, timeout=12, json=body)
         r.raise_for_status()
         raw = r.json()["choices"][0]["message"]["content"] or ""
         try:

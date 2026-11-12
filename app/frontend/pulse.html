@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#ffda24">
+  <title>Пульс PicPac</title>
+  <link rel="stylesheet" href="pulse.css">
+</head>
+<body>
+  <div id="login" class="login hidden">
+    <form id="loginForm" class="panel login-card">
+      <p class="eyebrow">Управленческий контур</p><h1>Пульс PicPac</h1>
+      <label>Логин<input id="loginName" autocomplete="username" value="director"></label>
+      <label>Пароль<input id="loginPassword" type="password" autocomplete="current-password" value="director123"></label>
+      <button>Войти</button><p id="loginError" class="error"></p>
+    </form>
+  </div>
+  <div id="app" class="hidden">
+    <header><div><p class="eyebrow">PicPac · данные на 10.11.2026</p><h1>Пульс</h1></div><div id="user"></div></header>
+    <nav><button data-page="pulse" class="active">Показатели</button><button data-page="decisions">Решения</button><button data-page="sources" id="sourcesTab">Источники</button></nav>
+    <main>
+      <section id="pulsePage">
+        <div class="panel filters">
+          <label>Период<select id="period"><option value="4w">4 недели</option><option value="12w" selected>12 недель</option></select></label>
+          <label>Подразделение<select id="dept"><option value="">Все</option><option value="sales">Продажи</option><option value="production">Производство</option><option value="finance">Финансы</option></select></label>
+          <label>Продукт<select id="product"><option value="">Все</option><option>Фотокнига</option><option>Календарь</option><option>Фотопечать</option></select></label>
+        </div>
+        <div id="kpis" class="kpi-grid"></div>
+        <article id="drill" class="panel hidden"></article>
+      </section>
+      <section id="decisionsPage" class="hidden">
+        <div class="section-title"><div><p class="eyebrow">УП-04</p><h2>Реестр решений</h2></div><button id="newDecision">Новое решение</button></div>
+        <div id="decisionForm" class="panel hidden"></div><div id="decisions" class="decision-list"></div>
+      </section>
+      <section id="sourcesPage" class="hidden"><div class="section-title"><div><p class="eyebrow">Свежесть и качество</p><h2>Источники</h2></div></div><div id="sources" class="source-grid"></div></section>
+    </main>
+  </div>
+  <div id="toast" role="status"></div>
+  <script src="config.js"></script><script src="pulse.js"></script>
+</body>
+</html>

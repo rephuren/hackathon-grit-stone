@@ -60,7 +60,8 @@ def init():
 
     with D.db() as c:
         c.executescript(SCHEMA)
-        if os.environ.get("SEED_TEST_USERS", "1") == "1":
+        stand_pw = os.environ.get("PULSE_PASSWORD", "")  # публичный стенд: свой пароль ролей вместо тестовых
+        if os.environ.get("SEED_TEST_USERS", "1") == "1" or stand_pw:
             users = [
                 ("director", "director123", "director", "Директор (тест)", None),
                 ("head_sales", "head123", "dept_head", "Руководитель продаж (тест)", "sales"),
@@ -68,7 +69,10 @@ def init():
                 ("analyst", "analyst123", "analyst", "Аналитик (тест)", None),
             ]
             for login, password, role, name, dept in users:
+                password = stand_pw or password
                 row = c.execute("SELECT id FROM users WHERE login=?", (login,)).fetchone()
+                if row and stand_pw:
+                    c.execute("UPDATE users SET pass_hash=? WHERE id=?", (security.hash_password(password), row["id"]))
                 if not row:
                     cur = c.execute(
                         "INSERT INTO users(login,pass_hash,role,name,created_at) VALUES(?,?,?,?,?)",

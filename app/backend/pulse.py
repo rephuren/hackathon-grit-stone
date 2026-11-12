@@ -98,7 +98,9 @@ def calculate_kpis(c, period="12w", dept="", product=""):
     staff = [dict(r) for r in c.execute("SELECT * FROM pulse_staff WHERE week>=?", (PD.period_start(period)[:10],))]
     coverage = 100 * sum(r["headcount_fact"] for r in staff) / max(sum(r["headcount_plan"] for r in staff), 1)
     event_users = c.execute("SELECT COUNT(DISTINCT user_id) FROM events WHERE name='project_created'").fetchone()[0]
-    buyers = c.execute("SELECT COUNT(DISTINCT user_id) FROM events WHERE name='order_created'").fetchone()[0]
+    # одна когорта: покупатели среди тех, кто создавал проект (иначе конверсия может превысить 100 %)
+    buyers = c.execute("SELECT COUNT(DISTINCT user_id) FROM events WHERE name='order_created' AND user_id IN "
+                       "(SELECT user_id FROM events WHERE name='project_created')").fetchone()[0]
     conversion = 100 * buyers / max(event_users, 1)
     tickets = c.execute("SELECT COUNT(*), SUM(CASE WHEN status!='open' THEN 1 ELSE 0 END) FROM tickets").fetchone()
     sla = 100 * (tickets[1] or 0) / max(tickets[0] or 0, 1)

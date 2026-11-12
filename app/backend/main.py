@@ -32,6 +32,7 @@ from . import imagegen as G
 from . import imaging as I
 from . import moderation as M
 from . import preflight as P
+from . import pulse as PULSE
 from . import security as S
 from . import tgbot as TG
 from . import webpush as WP
@@ -54,6 +55,7 @@ FUNNEL = [("app_open", "Открыли приложение"), ("product_view", 
 @asynccontextmanager
 async def lifespan(_app):
     D.init_db()
+    PULSE.init()  # управленческий контур «Пульс PicPac» (трек 1): свои таблицы pulse_* и тестовые роли
     with D.db() as c:
         WP.init(c)
     if M.available():  # модель модерации грузим заранее: первая загрузка фото не ждёт
@@ -1623,6 +1625,7 @@ def health():
 
 
 app.include_router(api)
+app.include_router(PULSE.router)
 
 _frontend = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend")
 if os.path.isdir(_frontend):

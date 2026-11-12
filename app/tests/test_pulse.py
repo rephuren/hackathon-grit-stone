@@ -5,6 +5,7 @@ import tempfile
 os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="picpac_pulse_test_")
 os.environ["SEED_TEST_USERS"] = "1"
 os.environ["OPERATOR_PASSWORD"] = ""
+os.environ["PULSE_PASSWORD"] = ""  # тестовые пароли ролей, а не пароль стенда из .env
 os.environ["TELEGRAM_BOT_TOKEN"] = ""
 
 import pytest  # noqa: E402

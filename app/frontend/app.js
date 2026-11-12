@@ -295,6 +295,7 @@ async function viewHome() {
     ${cont ? (V3 ? contCard(cont, pct) : `<a class="card row" href="#/project/${cont.id}/photos">${book(cont.cover, cont.title, true)}<div class="g"><h3 style="font-size:18px">Продолжить проект</h3><div class="muted">${esc(cont.title)} · ${cont.photos_count} фото</div><div class="bar" style="margin-top:12px"><i style="width:${Math.max(6, pct)}%"></i></div></div>${ic('next')}</a>`) : ''}
     ${active ? (V3 ? orderChip(active) : `<a class="rowbtn y" href="#/order/${active.id}" style="min-height:64px">${ic('truck', 32)}<span class="g">${active.status === 'ready' ? 'Фотокнига в пути' : esc(active.status_label)}<small>Заказ ${esc(active.number)}</small></span>${ic('next')}</a>`) : ''}
     <a class="rowbtn" href="#/new?kind=print">${ic('image')}<span class="g">Быстрая печать фото${V3 ? '' : '<small>Без макета, за пару шагов</small>'}</span>${ic('next')}</a>
+    <a class="rowbtn" href="#/new?kind=calendar">${ic('cal')}<span class="g">Создать календарь<small>12 месяцев с вашими фотографиями</small></span>${ic('next')}</a>
   </section>`, { active: '/' });
   if (V3) maybeOnboarding();
 }
@@ -343,17 +344,24 @@ function maybeOnboarding(force) {
 
 /* ---------- новый проект ---------- */
 async function viewNew() {
-  const kind = state.q.get('kind') === 'print' ? 'print' : 'book';
+  const asked = state.q.get('kind');
+  const kind = ['print', 'calendar'].includes(asked) ? asked : 'book';
   const products = (await api('/products')).filter((p) => p.kind === kind);
+  const copy = {
+    book: ['Новая фотокнига', 'Выберите тип книги. Формат и число страниц можно поменять позже.'],
+    print: ['Печать фото', 'Отпечатки с ваших снимков. Формат можно поменять позже.'],
+    calendar: ['Новый календарь', 'Выберите формат календаря. Внутри — обложка и 12 месяцев с вашими фото.'],
+  }[kind];
   track('product_view');
-  shell(`${head(kind === 'book' ? 'Новая фотокнига' : 'Печать фото', { back: '/' })}
-  <div class="seg"><a class="${kind === 'book' ? 'on' : ''}" href="#/new">${ic('book', 20)}Фотокнига</a><a class="${kind === 'print' ? 'on' : ''}" href="#/new?kind=print">${ic('image', 20)}Фото</a><button disabled title="Календари появятся позже">${ic('cal', 20)}Календарь · скоро</button></div>
-  <p class="muted">${kind === 'book' ? 'Выберите тип книги. Формат и число страниц можно поменять позже.' : 'Отпечатки с ваших снимков. Формат можно поменять позже.'}</p>
-  <div class="stack">${products.map((p) => `<button class="card row" style="width:100%;text-align:left" data-act="create" data-id="${p.id}" data-title="${esc(p.title)}"><span class="g"><h3 style="font-size:18px">${esc(p.title)}</h3><span class="muted">${esc(p.descr)}</span><br><b>от ${byn(Math.min(...p.options.sizes.map((s) => s.base)))}${p.kind === 'print' ? ' за фото' : ''}</b></span>${ic('next')}</button>`).join('')}</div>`, { active: '/new', hasBack: true });
+  shell(`${head(copy[0], { back: '/' })}
+  <div class="seg"><a class="${kind === 'book' ? 'on' : ''}" href="#/new">${ic('book', 20)}Фотокнига</a><a class="${kind === 'print' ? 'on' : ''}" href="#/new?kind=print">${ic('image', 20)}Фото</a><a class="${kind === 'calendar' ? 'on' : ''}" href="#/new?kind=calendar">${ic('cal', 20)}Календарь</a></div>
+  <p class="muted">${copy[1]}</p>
+  <div class="stack">${products.length ? products.map((p) => `<button class="card row" style="width:100%;text-align:left" data-act="create" data-id="${p.id}" data-title="${esc(p.title)}"><span class="g"><h3 style="font-size:18px">${esc(p.title)}</h3><span class="muted">${esc(p.descr)}</span><br><b>от ${byn(Math.min(...p.options.sizes.map((s) => s.base)))}${p.kind === 'print' ? ' за фото' : ''}</b></span>${ic('next')}</button>`).join('') : '<div class="note y">Каталог календарей обновляется. Попробуйте ещё раз через минуту.</div>'}</div>`, { active: '/new', hasBack: true });
   state.ctx = { create: async (el) => {
     el.disabled = true;
     try {
-      const p = await api('/projects', { method: 'POST', body: { product_id: el.dataset.id, title: kind === 'book' ? 'Моя фотокнига' : el.dataset.title } });
+      const title = kind === 'book' ? 'Моя фотокнига' : kind === 'calendar' ? 'Мой календарь' : el.dataset.title;
+      const p = await api('/projects', { method: 'POST', body: { product_id: el.dataset.id, title } });
       track('project_created'); go(`/project/${p.id}/photos`);
     } catch (e) { el.disabled = false; toast(e.message); }
   } };
@@ -380,14 +388,16 @@ async function viewProjects() {
 
 /* ---------- параметры продукта ---------- */
 function optionsPanel(product, settings, onChange) {
-  const k = product.kind === 'book' ? 'cover' : 'finish';
+  const withLayout = product.kind !== 'print';
+  const k = withLayout ? 'cover' : 'finish';
   const o = product.options;
   const btn = (key, id, label, cur) => `<button type="button" class="opt ${cur === id ? 'on' : ''}" data-opt="${key}" data-val="${id}">${esc(label)}</button>`;
   const pg = product.pages;
   const html = `<label class="lb">Формат</label><div class="opts">${o.sizes.map((s) => btn('size', s.id, s.label, settings.size)).join('')}</div>
-  <label class="lb">${product.kind === 'book' ? 'Обложка' : 'Поверхность'}</label><div class="opts">${o.covers.map((c) => btn(k, c.id, c.label, settings[k])).join('')}</div>
-  ${pg ? `<label class="lb" for="pgs">Страниц: <span id="pgv">${settings.pages}</span></label><input id="pgs" type="range" min="${pg.min}" max="${pg.max}" step="${pg.step}" value="${settings.pages}">` : ''}
-  <label class="lb" for="cps">${product.kind === 'book' ? 'Экземпляров' : 'Копий каждого фото'}: <span id="cpv">${settings.copies}</span></label><input id="cps" type="range" min="1" max="10" value="${settings.copies}">`;
+  <label class="lb">${product.kind === 'calendar' ? 'Крепление' : product.kind === 'book' ? 'Обложка' : 'Поверхность'}</label><div class="opts">${o.covers.map((c) => btn(k, c.id, c.label, settings[k])).join('')}</div>
+  ${pg && product.kind === 'book' ? `<label class="lb" for="pgs">Страниц: <span id="pgv">${settings.pages}</span></label><input id="pgs" type="range" min="${pg.min}" max="${pg.max}" step="${pg.step}" value="${settings.pages}">` : ''}
+  ${product.kind === 'calendar' ? '<p class="why">Обложка + 12 месяцев</p>' : ''}
+  <label class="lb" for="cps">${withLayout ? 'Экземпляров' : 'Копий каждого фото'}: <span id="cpv">${settings.copies}</span></label><input id="cps" type="range" min="1" max="10" value="${settings.copies}">`;
   return {
     html,
     bind(root) {
@@ -401,7 +411,8 @@ function paramsLabel(project) {
   const s = project.settings, o = project.product.options;
   const size = (o.sizes.find((x) => x.id === s.size) || {}).label || s.size;
   const cov = (o.covers.find((x) => x.id === (s.cover || s.finish)) || {}).label || '';
-  return [size, cov, s.pages ? `${s.pages} стр.` : '', `${s.copies} шт.`].filter(Boolean).join(' · ');
+  const volume = project.product.kind === 'calendar' ? '12 месяцев' : s.pages ? `${s.pages} стр.` : '';
+  return [size, cov, volume, `${s.copies} шт.`].filter(Boolean).join(' · ');
 }
 function paramsSheet(project, after) {
   const settings = { ...project.settings };
@@ -434,13 +445,14 @@ async function viewProject(id, step) {
   if (project.status !== 'draft') return go('/orders');
   if (step === 'delivery' || step === 'order') step = 'cart';
   const fn = { photos: stepPhotos, edit: stepEdit, layout: stepLayout, check: stepCheck, cart: stepCart, ai: stepAI }[step];
-  if (!fn || (step === 'layout' && project.product.kind !== 'book')) return go(`/project/${id}/photos`);
+  if (!fn || (step === 'layout' && project.product.kind === 'print')) return go(`/project/${id}/photos`);
   if (step !== 'ai') store.set('pp_step_' + id, step);  // «Продолжить» откроет этот этап
   await fn(project);
 }
 const stepOf = (id) => { const k = store.get('pp_step_' + id); return ['photos', 'edit', 'layout', 'check', 'cart'].includes(k) ? k : 'photos'; };
 const STEP_NAME = { photos: 'фото', edit: 'правки', layout: 'макет', check: 'проверка', cart: 'оформление' };
-const isBook = (p) => p.product.kind === 'book';
+const hasLayout = (p) => p.product.kind !== 'print';
+const productIcon = (p) => p.product.kind === 'calendar' ? 'cal' : p.product.kind === 'book' ? 'book' : 'image';
 
 /* Чистка подборки: убрать дубликаты (остаётся лучший кадр серии) и неудачные снимки. */
 const cleanNums = (chk) => ({ dup: (chk.duplicates || []).reduce((s, g) => s + g.remove.length, 0), bad: (chk.bad || []).length });
@@ -495,7 +507,7 @@ async function stepPhotos(project) {
   const dups = chk.warnings.filter((w) => w.code === 'duplicate').length;
   const bad = new Set(chk.warnings.filter((w) => w.photo_id && w.code !== 'duplicate').map((w) => w.photo_id)).size;
   shell(`${head(project.title, { back: '/', right: `<button class="pillbtn" data-act="next" ${need ? 'disabled' : ''}>Далее</button>` })}
-  <button class="rowbtn" data-act="params">${ic(isBook(project) ? 'book' : 'image')}<span class="g">${esc(project.product.title)}<small>${esc(paramsLabel(project))}</small></span>${ic('next')}</button>
+  <button class="rowbtn" data-act="params">${ic(productIcon(project))}<span class="g">${esc(project.product.title)}<small>${esc(paramsLabel(project))}</small></span>${ic('next')}</button>
   ${n ? `<div class="lead" style="margin-top:12px"><img src="${inc[0].proxy || inc[0].url}" alt="Первое фото проекта"></div>` : ''}
   <div id="up"></div>
   ${n ? `<div class="row" style="margin:14px 0 10px"><button class="chip g" style="border:0;justify-content:flex-start;background:none;font-size:15px;padding-left:0" data-act="toggleedit">${editMode ? 'Готово' : 'Галерея · изменить порядок'}</button><span class="chip y" style="font-size:14px;padding:7px 13px">Выбрано ${n}</span></div>` : ''}
@@ -584,7 +596,7 @@ async function stepEdit(project) {
   <div class="mini"><button data-act="undo">${ic('undo', 18)}Отменить</button><button data-act="reset">Сбросить</button><button id="cmp" aria-label="Удерживайте, чтобы увидеть оригинал">Держите: до</button></div>
   <div class="panel" id="panel"></div>
   <div class="dock"><div class="tabs4" id="tabs"><button data-tab="filters">${ic('filters')}Фильтры</button><button data-tab="text">${ic('text')}Текст</button><button data-tab="crop">${ic('frame')}Кадр</button><button data-tab="ai">${ic('spark')}AI</button></div>
-  <button class="btn" data-act="next">${isBook(project) ? 'Собрать альбом' : 'Проверить фото'}</button>
+  <button class="btn" data-act="next">${project.product.kind === 'calendar' ? 'Собрать календарь' : hasLayout(project) ? 'Собрать альбом' : 'Проверить фото'}</button>
   <p class="why" id="savest">Оригинал не меняется: любую правку можно отменить</p></div>`, { noNav: true, hasBack: true });
 
   let baseKey = '', baseUrl = null;
@@ -713,7 +725,7 @@ async function stepEdit(project) {
     up2: async (el) => { if (!(await save())) return; if (await doUpscale(project, ph.id, 2, el)) go(`/project/${project.id}/edit?i=${idx}&tab=ai`); },
     up4: async (el) => { if (!(await save())) return; if (await doUpscale(project, ph.id, 4, el)) go(`/project/${project.id}/edit?i=${idx}&tab=ai`); },
     unup: async (el) => { el.disabled = true; try { await api(`/projects/${project.id}/photos/${ph.id}/upscale`, { method: 'DELETE' }); toast('Вернули исходное качество'); go(`/project/${project.id}/edit?i=${idx}&tab=ai`); } catch (x) { el.disabled = false; toast(x.message); } },
-    next: () => leave(`/project/${project.id}/${isBook(project) ? 'layout' : 'check'}`),
+    next: () => leave(`/project/${project.id}/${hasLayout(project) ? 'layout' : 'check'}`),
   };
 }
 
@@ -839,6 +851,7 @@ async function stepAI(project) {
 }
 
 /* ---------- готовый альбом ---------- */
+const CAL_MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 const PAGE_THEMES = [['classic', 'Классика', 'Чисто и просто'], ['kids', 'Детский', 'Звёздочки, облака, рамки'], ['travel', 'Путешествие', 'Фото-карточки на крафте'],
   ['party', 'Праздник', 'Яркий коллаж с конфетти'], ['soft', 'Нежный', 'Мягкие цвета, круглые фото']];
 let curTheme = 'classic';
@@ -847,7 +860,7 @@ function pageHtml(pg, byId, k = 'url') {
   if (!pg) return `<div class="pg t-blank ${th}"></div>`;
   if (pg.cover) return `<div class="pg t-cover ${th}"><b>${esc(pg.title)}</b>${pg.photo ? `<img src="${pg.photo[k]}" alt="">` : ''}</div>`;
   const imgs = pg.photo_ids.filter((i) => byId[i]).map((i) => `<img src="${byId[i][k]}" alt="">`).join('');
-  return `<div class="pg t-${pg.template} v${pg.variant || 0} ${th}">${pg.template === 'blank' ? 'пусто' : imgs}${pg.caption ? `<span class="cap">${esc(fmtDate(pg.caption))}</span>` : ''}</div>`;
+  return `<div class="pg t-${pg.template} v${pg.variant || 0} ${th}">${pg.template === 'blank' ? 'пусто' : imgs}${pg.month ? `<span class="cap">${esc(pg.month)}</span>` : pg.caption ? `<span class="cap">${esc(fmtDate(pg.caption))}</span>` : ''}</div>`;
 }
 async function stepLayout(project) {
   const incl = project.photos.filter((p) => !p.excluded);
@@ -856,36 +869,41 @@ async function stepLayout(project) {
   if (!project.layout) {
     shell(`${head(project.title, { back: `/project/${project.id}/edit` })}<div class="foot" style="margin-top:80px"><span class="spin"></span>Создаём макет…</div>`, { noNav: true, hasBack: true });
     /* Число страниц подбираем под число фото, чтобы в книге не было пустых страниц. Поменять можно в «Стиль». */
-    try { const sg = await api(`/projects/${project.id}/suggest-pages`); if (sg.pages && sg.pages !== project.settings.pages) await api('/projects/' + project.id, { method: 'PATCH', body: { settings: { pages: sg.pages } } }); } catch { /* оставим число страниц как было */ }
+    if (project.product.kind === 'book') {
+      try { const sg = await api(`/projects/${project.id}/suggest-pages`); if (sg.pages && sg.pages !== project.settings.pages) await api('/projects/' + project.id, { method: 'PATCH', body: { settings: { pages: sg.pages } } }); } catch { /* оставим число страниц как было */ }
+    }
     await api(`/projects/${project.id}/automaket?sort=date`, { method: 'POST' });
     project = await api('/projects/' + project.id); fresh = true;
   }
   const chk = await api(`/projects/${project.id}/check`);
   const byId = Object.fromEntries(project.photos.map((p) => [p.id, p]));
   const lay = project.layout, pages = lay ? lay.pages : [];
+  const calendar = project.product.kind === 'calendar';
+  if (calendar) pages.forEach((pg, i) => { pg.month = CAL_MONTHS[i] || `Месяц ${i + 1}`; });
   curTheme = (lay && lay.theme) || 'classic';
-  /* Первый «разворот» — обложка; дальше страницы парами, как в раскрытой книге. Всё строится из реального макета. */
+  /* У календаря каждый месяц — отдельный лист; у книги страницы показываются разворотами. */
   const spreads = [[null, { cover: true, title: project.title, photo: incl[0] }]];
-  for (let i = 0; i < pages.length; i += 2) spreads.push([pages[i], pages[i + 1] || null]);
+  if (calendar) pages.forEach((pg) => spreads.push([pg, null]));
+  else for (let i = 0; i < pages.length; i += 2) spreads.push([pages[i], pages[i + 1] || null]);
   let cur = Math.max(0, Math.min(spreads.length - 1, +(state.q.get('s') || 0)));
   const nw = chk.warnings.length;
   const okAll = chk.ok && !nw;
   const blank = pages.filter((pg) => !pg.photo_ids.length).length;
   shell(`${head(project.title, { back: `/project/${project.id}/edit`, right: `<button class="ib r" data-act="cover" aria-label="Переименовать и выбрать обложку">${ic('pencil')}</button>` })}
-  ${fresh ? tip('robot', `Разложил ${incl.length} фото на ${project.settings.pages} стр. и сгруппировал по дате съёмки. Листайте развороты.`, 'lay1') : ''}
+  ${fresh ? tip('robot', calendar ? `Разложил ${incl.length} фото по 12 месяцам. Листайте календарь и выберите оформление.` : `Разложил ${incl.length} фото на ${project.settings.pages} стр. и сгруппировал по дате съёмки. Листайте развороты.`, 'lay1') : ''}
   ${lay && lay.unplaced ? `<div class="note bad"><b>Не помещаются ${lay.unplaced} фото.</b> Увеличьте число страниц.<button class="btn sm line" data-act="style">Изменить число страниц</button></div>` : ''}
-  ${blank ? `<div class="note y"><b>${blank} ${plural(blank, 'страница пустая', 'страницы пустые', 'страниц пустые')}.</b> В этой книге минимум ${project.product.pages.min} стр. Добавьте ещё фото, чтобы заполнить их.<a class="btn sm line" href="#/project/${project.id}/photos">Добавить фото</a></div>` : ''}
+  ${blank ? `<div class="note y"><b>${blank} ${plural(blank, 'страница пустая', 'страницы пустые', 'страниц пустые')}.</b> В этом ${calendar ? 'календаре' : 'альбоме'} минимум ${project.product.pages.min} ${calendar ? 'месячных листов' : 'стр.'}. Добавьте ещё фото, чтобы заполнить их.<a class="btn sm line" href="#/project/${project.id}/photos">Добавить фото</a></div>` : ''}
   <div class="bookview"><div class="spread" id="spread"></div><button class="fab l" data-act="prev" aria-label="Предыдущий разворот">${ic('back')}</button><button class="fab rr" data-act="nextsp" aria-label="Следующий разворот">${ic('next')}</button></div>
   <div class="dots" id="dots"></div>
-  <div class="strip sp" id="spstrip">${spreads.map((s, i) => `<button data-s="${i}" aria-label="${i ? `Разворот ${i}` : 'Обложка'}"><span class="mini-sp">${pageHtml(s[0], byId, 'thumb')}${pageHtml(s[1], byId, 'thumb')}</span></button>`).join('')}</div>
-  <div class="two" style="margin-top:8px"><button class="rowbtn" data-act="cover">${ic('book')}<span class="g">Обложка</span>${ic('next', 20)}</button><button class="rowbtn" data-act="style">${ic('layers')}<span class="g">Стиль</span>${ic('next', 20)}</button></div>
+  <div class="strip sp" id="spstrip">${spreads.map((s, i) => `<button data-s="${i}" aria-label="${i ? calendar ? CAL_MONTHS[i - 1] || `Месяц ${i}` : `Разворот ${i}` : 'Обложка'}"><span class="mini-sp">${pageHtml(s[0], byId, 'thumb')}${pageHtml(s[1], byId, 'thumb')}</span></button>`).join('')}</div>
+  <div class="two" style="margin-top:8px"><button class="rowbtn" data-act="cover">${ic(calendar ? 'cal' : 'book')}<span class="g">Обложка</span>${ic('next', 20)}</button><button class="rowbtn" data-act="style">${ic('layers')}<span class="g">Стиль</span>${ic('next', 20)}</button></div>
   <div class="statusrow">${okAll ? `<span><i class="dot">${ic('check', 16, 3)}</i>Макет проверен</span>` : `<a href="#/project/${project.id}/check"><i class="dot w">${ic('warn', 15, 2.4)}</i>${chk.ok ? `${nw} ${plural(nw, 'замечание', 'замечания', 'замечаний')} ›` : 'Нужно исправить ›'}</a>`}<span class="sv">Все изменения<br>сохранены ✓</span></div>
-  <button class="btn" data-act="tocart" ${lay && !lay.unplaced ? '' : 'disabled'}>${okAll ? 'В корзину' : 'Проверить книгу'}</button>`, { noNav: true, hasBack: true });
+  <button class="btn" data-act="tocart" ${lay && !lay.unplaced ? '' : 'disabled'}>${okAll ? 'В корзину' : calendar ? 'Проверить календарь' : 'Проверить книгу'}</button>`, { noNav: true, hasBack: true });
   const draw = () => {
     const s = spreads[cur];
     $('#spread').innerHTML = pageHtml(s[0], byId) + pageHtml(s[1], byId);
     $('#dots').innerHTML = spreads.length <= 9 ? spreads.map((_, i) => `<i class="${i === cur ? 'on' : ''}"></i>`).join('') : '';
-    $('#dots').insertAdjacentHTML('beforeend', `<span style="margin-left:8px">${cur ? `Разворот ${cur} из ${spreads.length - 1}` : 'Обложка'}</span>`);
+    $('#dots').insertAdjacentHTML('beforeend', `<span style="margin-left:8px">${cur ? calendar ? `${CAL_MONTHS[cur - 1] || 'Месяц'} · ${cur} из 12` : `Разворот ${cur} из ${spreads.length - 1}` : 'Обложка'}</span>`);
     $$('#spstrip button').forEach((b, i) => b.classList.toggle('on', i === cur));
     $('[data-act=prev]').disabled = cur === 0; $('[data-act=nextsp]').disabled = cur === spreads.length - 1;
     const on = $('#spstrip .on'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'center', block: 'nearest' });
@@ -914,11 +932,11 @@ async function stepLayout(project) {
       });
     },
     style: () => {
-      sheet(`<h2>Стиль альбома</h2><label class="lb">Оформление страниц</label>
+      sheet(`<h2>${calendar ? 'Стиль календаря' : 'Стиль альбома'}</h2><label class="lb">Оформление страниц</label>
       <div class="themes">${PAGE_THEMES.map(([v, n, d]) => `<button class="th-pick ${curTheme === v ? 'on' : ''}" data-theme="${v}"><span class="pg t-grid v1 th-${v}" aria-hidden="true"><i></i><i></i><i></i><i></i></span><b>${n}</b><small>${d}</small></button>`).join('')}</div>
       <label class="lb">Порядок фотографий</label>
       <div class="stack"><button class="rowbtn" data-sort="date">${ic('cal')}<span class="g">По дате съёмки<small>Группируем события по дням</small></span></button><button class="rowbtn" data-sort="manual">${ic('layers')}<span class="g">Мой порядок<small>Как на экране фотографий</small></span></button>
-      <button class="rowbtn" data-act="closesheet" id="topar">${ic('book')}<span class="g">Формат и число страниц<small>${esc(paramsLabel(project))}</small></span>${ic('next', 20)}</button></div><div id="serr"></div>`, (root) => {
+      <button class="rowbtn" data-act="closesheet" id="topar">${ic(calendar ? 'cal' : 'book')}<span class="g">${calendar ? 'Формат и крепление' : 'Формат и число страниц'}<small>${esc(paramsLabel(project))}</small></span>${ic('next', 20)}</button></div><div id="serr"></div>`, (root) => {
         $$('[data-theme]', root).forEach((b) => (b.onclick = async () => {
           if (b.dataset.theme === curTheme) return closeSheet();
           $$('[data-theme]', root).forEach((x) => (x.disabled = true));
@@ -958,9 +976,9 @@ async function stepCheck(project) {
   if (project.layout) project.layout.pages.forEach((pg) => pg.photo_ids.forEach((i) => { pageOf[i] = pg.page; }));
   const ack = acked(project);
   const nw = chk.warnings.length;
-  const back = `/project/${project.id}/${isBook(project) ? 'layout' : 'edit'}`;
+  const back = `/project/${project.id}/${hasLayout(project) ? 'layout' : 'edit'}`;
   shell(`${head('Проверим перед печатью', { back })}
-  ${chk.ok && !nw ? `<div class="note ok"><b>Всё в порядке.</b> Разрешения хватает, фото чёткие и не пересвечены, похожих кадров нет${isBook(project) ? ', все страницы заполнены' : ''}.</div>` : tip('robot', nw ? `Нашёл ${nw} ${plural(nw, 'место', 'места', 'мест')}, где печать может разочаровать. Покажу каждое.` : 'Сначала исправьте отмеченное ниже.', 'chk')}
+  ${chk.ok && !nw ? `<div class="note ok"><b>Всё в порядке.</b> Разрешения хватает, фото чёткие и не пересвечены, похожих кадров нет${hasLayout(project) ? ', все страницы заполнены' : ''}.</div>` : tip('robot', nw ? `Нашёл ${nw} ${plural(nw, 'место', 'места', 'мест')}, где печать может разочаровать. Покажу каждое.` : 'Сначала исправьте отмеченное ниже.', 'chk')}
   ${chk.blocking.map((b) => `<div class="note bad"><b>Нужно исправить:</b> ${esc(b.message)}</div>`).join('')}
   ${cleanCard(project, chk)}
   ${chk.warnings.map((w) => `<div class="wi">${w.photo_id && byId[w.photo_id] ? `<img src="${byId[w.photo_id].thumb}" alt="Фото ${byId[w.photo_id].i + 1}">` : ''}<div class="g"><b>${w.photo_id && byId[w.photo_id] ? `Фото ${byId[w.photo_id].i + 1}${pageOf[w.photo_id] ? ` · стр. ${pageOf[w.photo_id]}` : ''}` : 'Макет'}</b><span class="muted">${esc(EXPLAIN[w.code] || w.message)}</span>${!w.photo_id && w.code === 'blank_pages' ? `<div class="acts"><a class="btn sm line" href="#/project/${project.id}/photos">Добавить фото</a></div>` : ''}${w.photo_id ? `<div class="acts">${(state.caps.upscale && ['low_resolution', 'blurry'].includes(w.code) ? [...w.fix, 'upscale'] : w.fix).map((f) => `<button class="btn sm ${f === 'remove' ? 'grey' : f === 'upscale' ? '' : 'line'}" data-act="fix" data-fix="${f}" data-id="${w.photo_id}">${FIXES[f]}</button>`).join('')}<a class="btn sm grey" href="#/project/${project.id}/edit?i=${byId[w.photo_id].i}&tab=crop">Открыть</a></div>` : ''}</div></div>`).join('')}
@@ -1014,7 +1032,7 @@ async function stepCart(project) {
   const persist = () => store.set('pp_dlv_' + project.id, JSON.stringify(d));
   let promo = store.get('pp_promo_' + project.id) || '';
   let list = pts, onlyOpen = false, origin = null, map = null, markers = {}, me = null, priceNow = null;
-  shell(`${head('Корзина · 1', { back: `/project/${project.id}/${isBook(project) ? 'layout' : 'check'}` })}
+  shell(`${head('Корзина · 1', { back: `/project/${project.id}/${hasLayout(project) ? 'layout' : 'check'}` })}
   <button class="card row" style="width:100%;text-align:left" data-act="params">${book((project.photos.find((p) => !p.excluded) || {}).thumb, project.title, true)}<span class="g"><h3>${esc(project.title)}</h3><span class="muted">${esc(paramsLabel(project))}</span><br><b id="itemprice" style="font-size:18px">…</b></span>${ic('next')}</button>
   <div class="seg" id="methods" style="margin-top:12px">${Object.entries(DELIVERY).map(([k, [t, i]]) => `<button data-m="${k}">${ic(i, 20)}${t}</button>`).join('')}</div>
   <div id="pvzbox">
@@ -1209,7 +1227,7 @@ async function reorder(projectId, el) {
   try {
     const p = await api(`/projects/${projectId}/clone`, { method: 'POST' });
     toast('Создали копию проекта: можно заказать ещё раз');
-    go(`/project/${p.id}/${p.product.kind === 'book' ? 'layout' : 'photos'}`);
+    go(`/project/${p.id}/${p.product.kind === 'print' ? 'photos' : 'layout'}`);
   } catch (x) { if (el) { el.disabled = false; el.textContent = 'Заказать ещё'; } toast(x instanceof ApiErr && x.status === 404 ? 'Исходный проект удалён, повторить нельзя' : x.message); }
 }
 

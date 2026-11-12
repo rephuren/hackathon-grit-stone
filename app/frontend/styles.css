@@ -363,3 +363,16 @@ h2.sec{font-size:18px;margin:16px 0 8px}
 .ib{margin-left:-2px;width:48px;height:48px}
 .tcard .tv{position:relative;display:block}.tcard .tv .cov{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .tcard .tc-b{flex:1}.tcard .go{margin-top:auto}
+
+/* советы по качеству: спокойно, не похоже на ошибку загрузки */
+.tile .w.soft{background:rgba(255,255,255,.92);color:#4a5560;font-weight:700}
+.softtip{display:flex;align-items:center;gap:8px;background:var(--sub);border-radius:14px;padding:8px 8px 8px 12px;margin:0 0 10px;font-size:14px;color:var(--muted)}
+.softtip a{flex:1;color:inherit}.softtip b{color:var(--ink)}
+.softtip button{border:0;background:none;color:var(--muted);font:inherit;font-weight:700;min-height:44px;padding:0 6px}
+
+/* форма фото и шрифт в макете (выбор пользователя в «Стиле») */
+.pg.sh-round img{border-radius:10%}
+.pg.sh-circle:not(.t-cover) img{border-radius:50%;aspect-ratio:1;object-fit:cover}
+.fn-serif,.pg.fn-serif .cap,.pg.fn-serif.t-cover b{font-family:Georgia,"Times New Roman",serif}
+.fn-hand,.pg.fn-hand .cap,.pg.fn-hand.t-cover b{font-family:"Segoe Script","Bradley Hand","Snell Roundhand","Comic Sans MS",cursive}
+.fn-type,.pg.fn-type .cap,.pg.fn-type.t-cover b{font-family:"Courier New",monospace}

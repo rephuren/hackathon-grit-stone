@@ -26,7 +26,13 @@ const platform = {
   initData() { return (tg && tg.initData) || tgLaunch || ''; },  // подпись Telegram для входа без пароля
   ready() {
     if (!tg) return;
-    try { tg.ready(); tg.expand(); tg.setHeaderColor('#ffffff'); tg.setBackgroundColor('#ffffff'); } catch { /* старый клиент */ }
+    try { tg.ready(); tg.expand(); if ((store.get('pp_theme') || 'auto') === 'auto' && tg.colorScheme === 'dark') document.documentElement.classList.add('dark'); this.paint(); } catch { /* старый клиент */ }
+  },
+  paint() {  // цвет шапки Telegram и строки состояния под текущую тему
+    const dark = document.documentElement.classList.contains('dark');
+    const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = dark ? '#141619' : '#ffffff';
+    if (!tg) return;
+    try { tg.setHeaderColor(dark ? '#141619' : '#ffffff'); tg.setBackgroundColor(dark ? '#141619' : '#ffffff'); } catch { /* старый клиент */ }
   },
   setBack(visible) {  // системная кнопка «назад» (в Telegram), в остальных оболочках есть стрелка в шапке экрана
     if (tg && tg.BackButton) { try { visible ? tg.BackButton.show() : tg.BackButton.hide(); } catch { /* старый клиент */ } }
@@ -536,6 +542,7 @@ async function doCleanup(project, kind, after) {
   } catch (x) { toast(x.message); }
 }
 const acked = (p) => store.get('pp_ack_' + p.id) === '1';
+const qtips = () => store.get('pp_qtips') !== '0';  // советы по качеству фото: можно отключить в Профиле
 const WARN_SHORT = { low_resolution: 'мало пикселей', blurry: 'смазано', too_dark: 'темно', duplicate: 'похожее', overexposed: 'пересвет', crop_risk: 'обрежется' };
 
 /* ---------- выбор фото ---------- */
@@ -565,7 +572,7 @@ async function stepPhotos(project) {
   /* Плитка фото. Smart Story: ★ закрепляет кадр (своя страница), ⊘ убирает из книги без удаления, «Вернуть» возвращает. */
   const tile = (p) => {
     const i = project.photos.indexOf(p);
-    return `<div class="tile${p.excluded ? ' off' : ''}"><a href="#/project/${project.id}/edit?i=${i}" aria-label="Открыть фото ${i + 1} в редакторе"><img src="${p.thumb}" alt="Фото ${i + 1}" loading="lazy"></a><span class="n">${i + 1}</span>${p.pinned ? '<span class="pin">★ главное</span>' : ''}${warns[p.id] ? `<span class="w">${ic('warn', 13, 2.4)}${WARN_SHORT[warns[p.id][0]] || 'проверьте'}</span>` : ''}${!editMode && !p.pinned && Object.keys(p.edits || {}).length ? '<span class="e">с правками</span>' : ''}${p.excluded ? `<button class="back" data-act="flag" data-id="${p.id}" data-k="excluded" data-v="0">Вернуть в книгу</button>` : editMode ? `<div class="tl2"><button data-act="flag" data-id="${p.id}" data-k="pinned" data-v="${p.pinned ? 0 : 1}" class="${p.pinned ? 'on' : ''}" aria-label="${p.pinned ? 'Открепить кадр' : 'Закрепить кадр: своя страница'}">${p.pinned ? '★ главное' : '☆'}</button><button data-act="flag" data-id="${p.id}" data-k="excluded" data-v="1" aria-label="Убрать из книги, фото не удаляется">⊘</button></div><div class="tl"><button data-act="mv" data-id="${p.id}" data-d="-1" aria-label="Передвинуть раньше">‹</button><button data-act="rm" data-id="${p.id}" aria-label="Удалить фото навсегда">✕</button><button data-act="mv" data-id="${p.id}" data-d="1" aria-label="Передвинуть позже">›</button></div>` : ''}</div>`;
+    return `<div class="tile${p.excluded ? ' off' : ''}"><a href="#/project/${project.id}/edit?i=${i}" aria-label="Открыть фото ${i + 1} в редакторе"><img src="${p.thumb}" alt="Фото ${i + 1}" loading="lazy"></a><span class="n">${i + 1}</span>${p.pinned ? '<span class="pin">★ главное</span>' : ''}${warns[p.id] && qtips() ? `<span class="w soft">${WARN_SHORT[warns[p.id][0]] || 'совет'}</span>` : ''}${!editMode && !p.pinned && Object.keys(p.edits || {}).length ? '<span class="e">с правками</span>' : ''}${p.excluded ? `<button class="back" data-act="flag" data-id="${p.id}" data-k="excluded" data-v="0">Вернуть в книгу</button>` : editMode ? `<div class="tl2"><button data-act="flag" data-id="${p.id}" data-k="pinned" data-v="${p.pinned ? 0 : 1}" class="${p.pinned ? 'on' : ''}" aria-label="${p.pinned ? 'Открепить кадр' : 'Закрепить кадр: своя страница'}">${p.pinned ? '★ главное' : '☆'}</button><button data-act="flag" data-id="${p.id}" data-k="excluded" data-v="1" aria-label="Убрать из книги, фото не удаляется">⊘</button></div><div class="tl"><button data-act="mv" data-id="${p.id}" data-d="-1" aria-label="Передвинуть раньше">‹</button><button data-act="rm" data-id="${p.id}" aria-label="Удалить фото навсегда">✕</button><button data-act="mv" data-id="${p.id}" data-d="1" aria-label="Передвинуть позже">›</button></div>` : ''}</div>`;
   };
   const dups = chk.warnings.filter((w) => w.code === 'duplicate').length;
   const bad = new Set(chk.warnings.filter((w) => w.photo_id && w.code !== 'duplicate').map((w) => w.photo_id)).size;
@@ -575,8 +582,7 @@ async function stepPhotos(project) {
   <div id="up"></div>
   ${n ? `<div class="row" style="margin:14px 0 10px"><button class="chip g" style="border:0;justify-content:flex-start;background:none;font-size:15px;padding-left:0" data-act="toggleedit">${editMode ? 'Готово' : 'Галерея · изменить порядок'}</button><span class="chip y" style="font-size:14px;padding:7px 13px">${n} фото · мин. ${min}</span></div>` : ''}
   ${n ? `<p class="why" style="margin:-4px 0 10px">${project.product.kind === 'print' ? `Печатаем каждое фото: ${n} шт.` : `Нужно минимум ${min} фото. ${project.settings.pages ? `Страниц в ${project.product.kind === 'calendar' ? 'календаре: 12 месяцев' : `книге: ${project.settings.pages}`} — фото разложим по ним автоматически.` : ''}`}</p>` : ''}
-  ${n ? cleanCard(project, chk, `#/project/${project.id}/check`) : ''}
-  ${n && !cleanNums(chk).dup && !cleanNums(chk).bad && (dups || bad) ? `<a class="note y" style="display:block" href="#/project/${project.id}/check"><b>Проверка фото:</b> ${bad} ${plural(bad, 'фото', 'фото', 'фото')} требуют внимания. Посмотреть ›</a>` : ''}
+  ${n && qtips() && (dups || bad || cleanNums(chk).dup || cleanNums(chk).bad) ? `<div class="softtip">${ic('spark', 18)}<a href="#/project/${project.id}/check"><b>Советы по качеству:</b> ${bad + dups} ${plural(bad + dups, 'фото', 'фото', 'фото')}. Это не ошибка загрузки: все фото на месте. Посмотреть ›</a><button data-act="qoff" aria-label="Не показывать советы">Скрыть</button></div>` : ''}
   ${editMode ? '<p class="why" style="margin:0 0 8px">★ закрепить кадр: он получит отдельную страницу. ⊘ убрать из книги: фото останется в проекте, его можно вернуть. ✕ удалить навсегда.</p>' : ''}
   ${tot ? `${exc.length ? `<h2 style="font-size:18px;margin:6px 0 8px">В книге · ${n}</h2>` : ''}<div class="grid${editMode ? ' edit' : ''}">${inc.map(tile).join('')}
     <div class="tile add"><label for="file">${ic('plus', 26)}Добавить</label></div></div>
@@ -952,9 +958,11 @@ function calendarGridHtml(year, month) {
 }
 const PAGE_THEMES = [['classic', 'Классика', 'Чисто и просто'], ['kids', 'Детский', 'Звёздочки, облака, рамки'], ['travel', 'Путешествие', 'Фото-карточки на крафте'],
   ['party', 'Праздник', 'Яркий коллаж с конфетти'], ['soft', 'Нежный', 'Мягкие цвета, круглые фото']];
-let curTheme = 'classic';
+let curTheme = 'classic', curShape = 'square', curFont = 'base';
+const SHAPES = [['square', 'Прямые'], ['round', 'Скруглённые'], ['circle', 'Круглые']];
+const FONTS = [['base', 'Manrope'], ['serif', 'С засечками'], ['hand', 'Рукописный'], ['type', 'Машинка']];
 function pageHtml(pg, byId, k = 'url') {
-  const th = `th-${curTheme}`;
+  const th = `th-${curTheme} sh-${curShape} fn-${curFont}`;
   if (!pg) return `<div class="pg t-blank ${th}"></div>`;
   if (pg.cover) return `<div class="pg t-cover ${th}"><b>${esc(pg.title)}</b>${pg.photo ? `<img src="${pg.photo[k]}" alt="">` : ''}</div>`;
   const imgs = pg.photo_ids.filter((i) => byId[i]).map((i) => `<img src="${byId[i][k]}" alt="">`).join('');
@@ -981,6 +989,7 @@ async function stepLayout(project) {
   const calendar = project.product.kind === 'calendar';
   if (calendar) pages.forEach((pg, i) => { pg.month = CAL_MONTHS[i] || `Месяц ${i + 1}`; pg.monthIndex = i; pg.year = project.settings.year || new Date().getFullYear() + 1; });
   curTheme = (lay && lay.theme) || 'classic';
+  curShape = store.get('pp_shape_' + project.id) || 'square'; curFont = store.get('pp_font_' + project.id) || 'base';
   /* У календаря каждый месяц — отдельный лист; у книги страницы показываются разворотами. */
   const coverPage = { cover: true, title: `${project.title} · ${project.settings.year || ''}`.trim(), photo: incl[0] };
   const spreads = calendar ? [[coverPage, null]] : [[null, coverPage]];
@@ -1035,9 +1044,13 @@ async function stepLayout(project) {
     style: () => {
       sheet(`<h2>${calendar ? 'Стиль календаря' : 'Стиль альбома'}</h2><label class="lb">Оформление страниц</label>
       <div class="themes">${PAGE_THEMES.map(([v, n, d]) => `<button class="th-pick ${curTheme === v ? 'on' : ''}" data-theme="${v}"><span class="pg t-grid v1 th-${v}" aria-hidden="true"><i></i><i></i><i></i><i></i></span><b>${n}</b><small>${d}</small></button>`).join('')}</div>
+      <label class="lb">Форма фото</label><div class="opts">${SHAPES.map(([v, l]) => `<button class="opt ${curShape === v ? 'on' : ''}" data-shape="${v}">${l}</button>`).join('')}</div>
+      <label class="lb">Шрифт подписей и обложки</label><div class="opts">${FONTS.map(([v, l]) => `<button class="opt fn-${v} ${curFont === v ? 'on' : ''}" data-font="${v}">${l}</button>`).join('')}</div>
       <label class="lb">Порядок фотографий</label>
       <div class="stack"><button class="rowbtn" data-sort="date">${ic('cal')}<span class="g">По дате съёмки<small>Группируем события по дням</small></span></button><button class="rowbtn" data-sort="manual">${ic('layers')}<span class="g">Мой порядок<small>Как на экране фотографий</small></span></button>
       <button class="rowbtn" data-act="closesheet" id="topar">${ic(calendar ? 'cal' : 'book')}<span class="g">${calendar ? 'Формат и крепление' : 'Формат и число страниц'}<small>${esc(paramsLabel(project))}</small></span>${ic('next', 20)}</button></div><div id="serr"></div>`, (root) => {
+        $$('[data-shape]', root).forEach((b) => (b.onclick = () => { store.set('pp_shape_' + project.id, b.dataset.shape); closeSheet(true); toast('Форма фото применена'); again(); }));
+        $$('[data-font]', root).forEach((b) => (b.onclick = () => { store.set('pp_font_' + project.id, b.dataset.font); closeSheet(true); toast('Шрифт применён'); again(); }));
         $$('[data-theme]', root).forEach((b) => (b.onclick = async () => {
           if (b.dataset.theme === curTheme) return closeSheet();
           $$('[data-theme]', root).forEach((x) => (x.disabled = true));
@@ -1079,6 +1092,7 @@ async function stepCheck(project) {
   const nw = chk.warnings.length;
   const back = `/project/${project.id}/${hasLayout(project) ? 'layout' : 'edit'}`;
   shell(`${head('Проверим перед печатью', { back })}
+  <p class="why" style="margin:-4px 0 10px">Это советы, а не ошибки: решать вам. Заказ остановим только если файл не подходит для печати технически.</p>
   ${chk.ok && !nw ? `<div class="note ok"><b>Всё в порядке.</b> Разрешения хватает, фото чёткие и не пересвечены, похожих кадров нет${hasLayout(project) ? ', все страницы заполнены' : ''}.</div>` : tip('robot', nw ? `Нашёл ${nw} ${plural(nw, 'место', 'места', 'мест')}, где печать может разочаровать. Покажу каждое.` : 'Сначала исправьте отмеченное ниже.', 'chk')}
   ${chk.blocking.map((b) => `<div class="note bad"><b>Нужно исправить:</b> ${esc(b.message)}</div>`).join('')}
   ${cleanCard(project, chk)}
@@ -1343,6 +1357,9 @@ async function viewProfile() {
   <div class="menu"><a href="#/orders">${ic('box')}<span class="g">Мои заказы</span>${ic('next', 20)}</a><a href="#/orders?f=done">${ic('bag')}<span class="g">Мои покупки</span>${ic('next', 20)}</a><a href="#/projects">${ic('folder')}<span class="g">Мои проекты</span>${ic('next', 20)}</a><div style="color:var(--muted)">${ic('heart')}<span class="g">Избранное</span><span class="chip soon">Скоро</span></div><button data-act="feedback">${ic('chat')}<span class="g">Отзывы и вопросы</span>${ic('next', 20)}</button></div>
   ${last ? `<h2>${last.status === 'completed' ? 'Прошлая покупка' : 'Последний заказ'}</h2><div class="card row"><a href="#/order/${last.id}">${book(last.cover, last.project_title, true)}</a><div class="g"><button class="btn sm" style="width:100%" data-act="reorder">Заказать ещё</button><a class="btn sm line" style="width:100%;margin-top:8px" href="#/order/${last.id}?review=1">Оставить отзыв</a></div></div>` : ''}`}
   <h2>Оформление</h2><div class="seg">${[['v3', 'Новое'], ['v2', 'Прошлое'], ['classic', 'Первое']].map(([v, l]) => `<button data-act="design" data-v="${v}" class="${(window.ppDesign ? window.ppDesign.get() : 'classic') === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+  <label class="lb">Цвета</label><div class="seg">${[['calm', 'Спокойные'], ['yellow', 'Жёлтые']].map(([v, l]) => `<button data-act="pal" data-v="${v}" class="${(store.get('pp_pal') || 'calm') === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+  <label class="lb">Советы по качеству фото</label><div class="seg">${[['1', 'Показывать'], ['0', 'Не показывать']].map(([v, l]) => `<button data-act="qtip" data-v="${v}" class="${(qtips() ? '1' : '0') === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+  <label class="lb">Тема</label><div class="seg">${[['auto', 'Как в системе'], ['light', 'Светлая'], ['dark', 'Тёмная']].map(([v, l]) => `<button data-act="thm" data-v="${v}" class="${(store.get('pp_theme') || 'auto') === v ? 'on' : ''}">${l}</button>`).join('')}</div>
   ${V3 ? '<button class="rowbtn" data-act="onboard" style="margin-top:10px">' + ic('info') + '<span class="g">Как пользоваться приложением</span>' + ic('next', 20) + '</button>' : ''}
   <button class="rowbtn" data-act="assistant" style="margin-top:10px">${ic('chat')}<span class="g">Спросить помощника Робо<small>Заказы, цены, сроки, шаблоны</small></span>${ic('next', 20)}</button>
   ${platform.kind === 'telegram' || matchMedia('(display-mode: standalone)').matches ? '' : `<button class="rowbtn" data-act="install" style="margin-top:10px">${ic('upload')}<span class="g">Установить на телефон<small>Как приложение, без адресной строки</small></span>${ic('next', 20)}</button>`}
@@ -1425,6 +1442,10 @@ const ACTS = {
     sheet(`<h2>Установить picPac на телефон</h2>${ios ? '<p>1. Откройте сайт в Safari.<br>2. Нажмите «Поделиться» внизу экрана.<br>3. Выберите «На экран „Домой“».</p>' : '<p>Откройте меню браузера (⋮) и выберите «Установить приложение» или «Добавить на главный экран».</p>'}<p class="muted">Приложение откроется во весь экран, без адресной строки. Проекты и заказы те же, что в Telegram и на сайте.</p>`);
   },
   assistant: () => openAssistant(),
+  qoff: () => { store.set('pp_qtips', '0'); toast('Советы скрыты. Включить: Профиль → Советы по качеству'); route(); },
+  qtip: (el) => { store.set('pp_qtips', el.dataset.v); viewProfile(); },
+  pal: (el) => { store.set('pp_pal', el.dataset.v); document.documentElement.classList.toggle('calm', el.dataset.v === 'calm'); viewProfile(); },
+  thm: (el) => { store.set('pp_theme', el.dataset.v); const t = el.dataset.v; const dark = t === 'dark' || (t === 'auto' && ((tg && tg.colorScheme === 'dark') || matchMedia('(prefers-color-scheme: dark)').matches)); document.documentElement.classList.toggle('dark', dark); platform.paint(); viewProfile(); },
   design: (el) => { if (window.ppDesign && window.ppDesign.get() !== el.dataset.v) window.ppDesign.set(el.dataset.v); },
   account: (el, ev) => { if (ev) ev.preventDefault(); accountSheet(el.dataset.mode || 'register'); },
   guest: async (el) => { el.disabled = true; try { await auth('/auth/guest', {}); } catch (e) { el.disabled = false; toast(e.message); } },

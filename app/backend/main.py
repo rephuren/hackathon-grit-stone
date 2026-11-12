@@ -1538,13 +1538,13 @@ app.include_router(api)
 _frontend = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend")
 if os.path.isdir(_frontend):
     def _index():
-        files = ("app.js", "styles.css", "index.html", "design.css", "motion.js", "config.js")
+        files = ("app.js", "styles.css", "index.html", "design.css", "theme.css", "motion.js", "config.js")
         ver = int(max(os.path.getmtime(os.path.join(_frontend, f)) for f in files if os.path.exists(os.path.join(_frontend, f))))
         with open(os.path.join(_frontend, "index.html"), encoding="utf-8") as fh:
             html = fh.read()
         for name in ("app.js", "motion.js", "config.js"):
             html = html.replace(f'src="{name}"', f'src="{name}?v={ver}"')
-        for name in ("styles.css", "design.css"):
+        for name in ("styles.css", "design.css", "theme.css"):
             html = html.replace(f'href="{name}"', f'href="{name}?v={ver}"')
         return HTMLResponse(html, headers={"Cache-Control": "no-cache"})  # телефон всегда спрашивает свежую страницу, а скрипты ловятся по ?v=
 

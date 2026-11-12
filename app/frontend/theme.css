@@ -1,0 +1,44 @@
+/* Палитра и тёмная тема (правки дизайнера, вкладка 11).
+   html.calm — спокойная палитра: тёмно-синий для главных кнопок, золотистый только как акцент, тёплый серый фон.
+   Референс: Yale Blue #0f3b59, Cool Steel #7d929e, Dust Grey #dbd4cc, Goldenrod #dba12c, Dark Coffee #3e251e.
+   html.dark — тёмная тема (авто по системе или вручную в Профиле). Превью страниц книги остаются белыми: это бумага. */
+
+html.calm{--y:#dba12c;--y-press:#c48e1f;--y-soft:#f6ecd6;--pri:#0f3b59;--pri-press:#0b2d45;--ink:#1c2329;--muted:#5d6a73;
+  --canvas:#f8f6f3;--sub:#efebe6;--line:#dbd4cc}
+html.calm body{background:#e9e5df}
+html.calm .btn:not(.line):not(.grey):not(.danger){background:var(--pri);color:#fff}
+html.calm .btn:not(.line):not(.grey):not(.danger):active{background:var(--pri-press)}
+html.calm .btn:not(.line):not(.grey):not(.danger) svg{stroke:#fff}
+html.calm .btn:disabled{background:#c9ced3;color:#5d6a73}
+html.calm .hero{background:linear-gradient(160deg,#0f3b59 0%,#2a5876 60%,#7d929e 100%)!important;color:#fff}
+html.calm .hero h1{color:#fff}
+html.calm .nav a.plus i{background:var(--pri);color:#fff}
+html.calm .nav a.plus i svg{stroke:#fff}
+html.calm .tcard .go{background:var(--pri);color:#fff}
+html.calm .seg>.on{background:var(--y-soft);border-color:var(--y)}
+html.calm .chip.y{background:var(--y-soft);color:#6b4a07}
+html.calm .msg.me{background:#d6e2ec}
+html.calm .askfab{background:var(--pri)}
+html.calm .askfab img{background:#dba12c}
+html.calm .note.y{background:#f6ecd6;border-color:#e7cf9a}
+
+/* ---------- тёмная тема ---------- */
+html.dark{--ink:#eceae6;--muted:#a7a29b;--canvas:#1f2226;--sub:#2a2e33;--line:#3a3f45;--y-soft:#3b3220;color-scheme:dark}
+html.dark.calm{--pri:#245a82;--pri-press:#1d4a6b}
+html.dark body,html.dark #app{background:#141619;color:var(--ink)}
+html.dark .topsheet,html.dark .nav,html.dark .sheet,html.dark .dock,html.dark .card,html.dark .card.w,html.dark .rowbtn,
+html.dark .menu,html.dark .menu>*,html.dark .tcard,html.dark .th-pick,html.dark .opt,html.dark .seg>*,html.dark .chip.w,
+html.dark .btn.line,html.dark .fab,html.dark .strip.sp button,html.dark .onb-card,html.dark .msg,html.dark .tip .bb,
+html.dark.v3 .rowbtn,html.dark.v3 .card.cont,html.dark .hd{background:var(--canvas);color:var(--ink);border-color:var(--line)}
+html.dark .seg>.on{background:var(--y-soft);border-color:var(--y)}
+html.dark input[type=text],html.dark input[type=tel],html.dark input[type=password],html.dark textarea,html.dark select{background:var(--sub);color:var(--ink);border-color:var(--line)}
+html.dark .muted,html.dark .why,html.dark small{color:var(--muted)}
+html.dark .note.y{background:#3b3220;border-color:#5c4a23;color:var(--ink)}
+html.dark .note.ok{background:#173326;color:#cfeedd}
+html.dark .note.bad{background:#3a1d1d;color:#f3d0d0}
+html.dark svg.ic{stroke:currentColor}
+html.dark .msg.me{background:#2f4b63;color:#fff}
+html.dark .chip.soon{background:#2a2e33;color:#a7a29b;border-color:#4a4f55}
+html.dark .stage,html.dark .ba figure{background:#0d0e10}
+html.dark .sheet-bg{background:rgba(0,0,0,.6)}
+html.dark .pg,html.dark .spread,html.dark .book i{color:#171717}

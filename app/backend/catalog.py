@@ -121,9 +121,14 @@ def default_settings(product: dict) -> dict:
     s = {"size": o["sizes"][0]["id"], key: o["covers"][0]["id"], "copies": 1}
     if product["kind"] in ("book", "calendar"):
         s["pages"] = product["pages"]["default"]
+        s["shape"], s["font"] = "square", "base"  # оформление страниц: форма фото и шрифт подписей
     if product["kind"] == "calendar":
         s["year"] = date.today().year + 1
     return s
+
+
+SHAPES = ("square", "round", "circle")
+FONTS = ("base", "serif", "hand", "type")
 
 
 def validate_settings(product: dict, settings: dict) -> dict:
@@ -143,6 +148,10 @@ def validate_settings(product: dict, settings: dict) -> dict:
     if not 1 <= out["copies"] <= 20:
         raise PricingError("Количество: от 1 до 20")
     if product["kind"] in ("book", "calendar"):
+        if out["shape"] not in SHAPES:
+            raise PricingError("Неизвестная форма фото")
+        if out["font"] not in FONTS:
+            raise PricingError("Неизвестный шрифт")
         p = product["pages"]
         try:
             out["pages"] = int(out["pages"])

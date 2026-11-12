@@ -132,6 +132,9 @@ def init_db():
             c.execute("ALTER TABLE photos ADD COLUMN edits TEXT")
         if "qx" not in cols:  # расширенные метрики качества (JSON)
             c.execute("ALTER TABLE photos ADD COLUMN qx TEXT")
+        ocols = [r["name"] for r in c.execute("PRAGMA table_info(orders)")]
+        if "design" not in ocols:  # оформление (форма фото, шрифт, тема страниц) фиксируется в заказе
+            c.execute("ALTER TABLE orders ADD COLUMN design TEXT")
         if "pinned" not in cols:  # Smart Story: закреплённый кадр получает свою страницу
             c.execute("ALTER TABLE photos ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
         if "excluded" not in cols:  # Smart Story: фото убрано из книги, но не удалено

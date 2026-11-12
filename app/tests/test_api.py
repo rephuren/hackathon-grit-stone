@@ -877,3 +877,31 @@ def test_moderation_off_does_not_break_upload(client, anna, monkeypatch):
     r = client.post(f"/api/projects/{pid}/photos", files=files(("a.jpg", jpeg(noise(1800, 1200)))), headers=anna)
     assert r.json()["added"] == 1
     assert not [w for w in client.get(f"/api/projects/{pid}/check", headers=anna).json()["warnings"] if w["code"] == "moderation"]
+
+
+def test_design_saved_in_project_and_order_and_blocked_is_audited(client, anna, igor, oper):
+    # 1) отказ при заказе пустого проекта остаётся в журнале (раньше откатывался вместе с транзакцией)
+    empty = new_project(client, anna, "premium")
+    pvz = client.get("/api/pickup-points").json()[0]["id"]
+    body = {"project_id": empty, "delivery": {"method": "pvz", "pvz_id": pvz, "recipient_name": "Тест Тестов", "phone": "+375290000000"}, "accept_warnings": True}
+    r = client.post("/api/orders", json=body, headers={**anna, "Idempotency-Key": "empty-" + os.urandom(4).hex()})
+    assert r.status_code == 422 and r.json()["detail"]["code"] == "project_not_ready"
+    log = client.get("/api/admin/audit?limit=50", headers=oper).json()
+    assert any(a["action"] == "order_create" and a["result"] == "blocked" and a["object"] == f"project:{empty}" for a in log)
+    # 2) форма фото и шрифт хранятся в проекте (видны с другого устройства = другой сессии) и попадают в заказ
+    pid = new_project(client, anna, "premium")
+    client.post(f"/api/projects/{pid}/photos", files=files(*[(f"p{i}.jpg", jpeg(noise(2400, 1800, 0.5 + i / 40))) for i in range(24)]), headers=anna)
+    client.post(f"/api/projects/{pid}/automaket", json={}, headers=anna)
+    layout_before = client.get(f"/api/projects/{pid}", headers=anna).json()["layout"]
+    p = client.patch(f"/api/projects/{pid}", json={"settings": {"shape": "circle", "font": "hand"}}, headers=anna)
+    assert p.status_code == 200 and p.json()["settings"]["shape"] == "circle" and p.json()["settings"]["font"] == "hand"
+    assert p.json()["layout"] == layout_before  # форма и шрифт раскладку не пересобирают
+    assert client.patch(f"/api/projects/{pid}", json={"settings": {"font": "comic"}}, headers=anna).status_code == 422
+    second_device = login(client, "demo", "demo123")  # новая сессия того же аккаунта
+    assert client.get(f"/api/projects/{pid}", headers=second_device).json()["settings"]["font"] == "hand"
+    o = client.post("/api/orders", json={**body, "project_id": pid}, headers={**anna, "Idempotency-Key": "design-" + os.urandom(4).hex()})
+    assert o.status_code == 200, o.text
+    assert o.json()["design"]["shape"] == "circle" and o.json()["design"]["font"] == "hand"
+    assert client.get(f"/api/orders/{o.json()['id']}", headers=second_device).json()["design"]["font"] == "hand"
+    adm = next(x for x in client.get("/api/admin/orders", headers=oper).json() if x["id"] == o.json()["id"])
+    assert adm["design"] == {"shape": "circle", "font": "hand", "theme": adm["design"]["theme"]}

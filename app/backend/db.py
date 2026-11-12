@@ -103,10 +103,14 @@ def init_db():
 
     with db() as c:
         c.executescript(SCHEMA)
-        if c.execute("SELECT COUNT(*) FROM products").fetchone()[0] == 0:
-            for p in catalog.PRODUCTS:
-                c.execute("INSERT INTO products(id,kind,title,data) VALUES(?,?,?,?)",
-                          (p["id"], p["kind"], p["title"], json.dumps(p, ensure_ascii=False)))
+        # Каталог — версионируемые mock-данные приложения. Upsert добавляет новые продукты
+        # (например, календарь) и обновляет цены на существующем стенде без очистки проектов.
+        for p in catalog.PRODUCTS:
+            c.execute(
+                "INSERT INTO products(id,kind,title,data) VALUES(?,?,?,?) "
+                "ON CONFLICT(id) DO UPDATE SET kind=excluded.kind,title=excluded.title,data=excluded.data",
+                (p["id"], p["kind"], p["title"], json.dumps(p, ensure_ascii=False)),
+            )
         if os.environ.get("SEED_TEST_USERS", "1") == "1":
             for login, pw, role, name in [
                 ("demo", "demo123", "client", "Анна (тест)"),

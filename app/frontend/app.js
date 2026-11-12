@@ -884,6 +884,7 @@ async function stepAI(project) {
     <label class="lb">Стиль</label>${styleChips(STYLES, style, 'st')}
     ${tip('robot', 'Подберу свет и контраст, сверху добавлю стиль. Это обычная обработка: оригинал сохранится.', 'ai1')}
     <button class="btn" data-act="enh">Применить к фото</button>
+    <div class="card soon-card" aria-disabled="true"><div class="row"><span class="g"><b>Изменить фото словами</b><span class="chip soon">Скоро</span><br><span class="muted">Например: «добавь шапку», «сделай зимним». Функция в разработке: подбираем модель, которая меняет только нужное и сохраняет людей на фото.</span></span></div></div>
     ${state.caps.upscale ? `<button class="btn line" data-act="upq">${ic('spark')}Улучшить качество (AI) · ${ph.width}×${ph.height}</button><p class="why">Нейросеть увеличит и сделает фото чётче. Подойдёт для маленьких и смазанных снимков.</p>` : ''}`;
     $$('[data-i]', box).forEach((b) => (b.onclick = () => go(`/project/${project.id}/ai?mode=enhance&i=${b.dataset.i}`)));
     $$('[data-st]', box).forEach((b) => (b.onclick = () => { style = b.dataset.st; drawEnhance(); }));

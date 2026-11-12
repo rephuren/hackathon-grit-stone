@@ -376,3 +376,5 @@ h2.sec{font-size:18px;margin:16px 0 8px}
 .fn-serif,.pg.fn-serif .cap,.pg.fn-serif.t-cover b{font-family:Georgia,"Times New Roman",serif}
 .fn-hand,.pg.fn-hand .cap,.pg.fn-hand.t-cover b{font-family:"Segoe Script","Bradley Hand","Snell Roundhand","Comic Sans MS",cursive}
 .fn-type,.pg.fn-type .cap,.pg.fn-type.t-cover b{font-family:"Courier New",monospace}
+
+.soon-card{margin-top:12px;opacity:.85;border-style:dashed}.soon-card .chip.soon{margin-left:8px;vertical-align:2px}

@@ -576,48 +576,67 @@ async function stepPhotos(project) {
   };
   const dups = chk.warnings.filter((w) => w.code === 'duplicate').length;
   const bad = new Set(chk.warnings.filter((w) => w.photo_id && w.code !== 'duplicate').map((w) => w.photo_id)).size;
-  shell(`${head(project.title, { back: '/', right: `<button class="pillbtn" data-act="next" ${need ? 'disabled' : ''}>Далее</button>` })}
-  <button class="rowbtn" data-act="params">${ic(productIcon(project))}<span class="g">${esc(project.product.title)}<small>${esc(paramsLabel(project))}</small></span>${ic('next')}</button>
+  shell(`${head(n ? 'Ваши фото' : 'Добавление фотографий', { back: '/', right: n ? '<button class="pillbtn" data-act="next">Далее</button>' : '' })}
+  <p class="stepline">Шаг 1 из 3 · Фото → Макет → Оформление</p>
+  <button class="rowbtn" data-act="params">${ic(productIcon(project))}<span class="g">${esc(project.product.title)}<small>${esc(paramsLabel(project))}</small></span><span class="chg">Изменить</span>${ic('next')}</button>
   ${n ? `<div class="lead" style="margin-top:12px"><img src="${inc[0].proxy || inc[0].url}" alt="Первое фото проекта"></div>` : ''}
   <div id="up"></div>
-  ${n ? `<div class="row" style="margin:14px 0 10px"><button class="chip g" style="border:0;justify-content:flex-start;background:none;font-size:15px;padding-left:0" data-act="toggleedit">${editMode ? 'Готово' : 'Галерея · изменить порядок'}</button><span class="chip y" style="font-size:14px;padding:7px 13px">${n} фото · мин. ${min}</span></div>` : ''}
+  ${n ? `<div class="row" style="margin:14px 0 10px"><button class="chip g" style="border:0;justify-content:flex-start;background:none;font-size:15px;padding-left:0" data-act="toggleedit">${editMode ? '✓ Готово' : '⇅ Изменить порядок'}</button><span class="chip y" style="font-size:14px;padding:7px 13px">${n} фото · мин. ${min}</span></div>` : ''}
   ${n ? `<p class="why" style="margin:-4px 0 10px">${project.product.kind === 'print' ? `Печатаем каждое фото: ${n} шт.` : `Нужно минимум ${min} фото. ${project.settings.pages ? `Страниц в ${project.product.kind === 'calendar' ? 'календаре: 12 месяцев' : `книге: ${project.settings.pages}`} — фото разложим по ним автоматически.` : ''}`}</p>` : ''}
   ${n && qtips() && (dups || bad || cleanNums(chk).dup || cleanNums(chk).bad) ? `<div class="softtip">${ic('spark', 18)}<a href="#/project/${project.id}/check"><b>Советы по качеству:</b> ${bad + dups} ${plural(bad + dups, 'фото', 'фото', 'фото')}. Это не ошибка загрузки: все фото на месте. Посмотреть ›</a><button data-act="qoff" aria-label="Не показывать советы">Скрыть</button></div>` : ''}
-  ${editMode ? '<p class="why" style="margin:0 0 8px">★ закрепить кадр: он получит отдельную страницу. ⊘ убрать из книги: фото останется в проекте, его можно вернуть. ✕ удалить навсегда.</p>' : ''}
+  ${editMode ? '<p class="why" style="margin:0 0 8px"><b>Порядок:</b> стрелки ← → на фото двигают его на одно место. ★ закрепить кадр: он получит отдельную страницу. ⊘ убрать из книги: фото останется в проекте, его можно вернуть. ✕ удалить навсегда.</p>' : ''}
   ${tot ? `${exc.length ? `<h2 style="font-size:18px;margin:6px 0 8px">В книге · ${n}</h2>` : ''}<div class="grid${editMode ? ' edit' : ''}">${inc.map(tile).join('')}
     <div class="tile add"><label for="file">${ic('plus', 26)}Добавить</label></div></div>
     ${exc.length ? `<h2 style="font-size:18px;margin:18px 0 4px">Остальные · ${exc.length}</h2><p class="why" style="margin:0 0 8px">Не в книге. Файлы сохранены, вернуть можно в один тап.</p><div class="grid">${exc.map(tile).join('')}</div>` : ''}`
-    : `${tip('cat', `Добавьте фотографии из галереи: минимум ${min}. Подойдут JPEG, PNG, HEIC с iPhone, WEBP, TIFF и BMP, до 15 МБ каждое.`, 'nophotos')}<label class="btn" for="file" style="cursor:pointer">${ic('upload')}Добавить фотографии</label>`}
+    : `<div class="addempty">${ic('image', 40, 1.6)}<h2>Добавьте свои фотографии</h2><p class="muted">Выберите снимки из галереи, чтобы начать создание фотопродукции.</p>
+      <p class="why">Минимум ${min} фото · До 15 МБ на файл · <button class="linkbtn" data-act="formats">Поддерживаемые форматы</button></p></div>
+      <label class="btn" for="file" style="cursor:pointer">${ic('upload')}Добавить фотографии</label>`}
   <input id="file" class="hide" type="file" multiple accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif,image/webp,image/tiff,image/bmp">
   <p></p><a class="btn line" href="#/project/${project.id}/ai?mode=create">${ic('spark')}Создать фото с AI</a>
-  <div class="foot">${ic('cloud', 22)}Сохраняем автоматически</div>
-  ${n ? `<button class="btn" data-act="next" ${need ? 'disabled' : ''}>Продолжить с фото</button>${need ? `<p class="why">Добавьте ещё ${need} фото: для этого продукта нужно минимум ${min}</p>` : ''}` : ''}`, { active: '/projects', hasBack: true });
-  $('#file').onchange = async (e) => {
-    const files = [...e.target.files]; if (!files.length) return;
-    const box = $('#up'); let rejected = [], okCount = 0, doneN = 0;
-    const show = () => { box.innerHTML = `<div class="note y"><span class="spin"></span>Загружаем ${Math.min(doneN + 1, files.length)} из ${files.length}…<div class="bar" style="margin-top:10px"><i style="width:${(doneN / files.length) * 100}%"></i></div></div>`; };
+  <div class="foot">${ic('cloud', 22)}Автоматическое сохранение</div>
+  ${n ? `<button class="btn" data-act="next">Продолжить с фото</button>${need ? `<p class="why">Для заказа нужно минимум ${min} фото: добавьте ещё ${need}. Макет можно посмотреть уже сейчас.</p>` : ''}` : ''}`, { active: '/projects', hasBack: true });
+  /* Загрузка: у каждого фото свой статус (ждёт, загружается, загружено, ошибка), общий процент; не загрузившиеся
+     из-за связи можно повторить одной кнопкой, отклонённые сервером показываем с причиной. */
+  const upload = async (files) => {
+    const box = $('#up'); const st = files.map((f) => ({ f, s: 'wait', why: '' }));
+    const icon = { wait: '○', up: '<span class="spin"></span>', ok: '✓', err: '!' };
+    const show = () => {
+      const done = st.filter((x) => x.s === 'ok' || x.s === 'err').length, pct = Math.round((done / st.length) * 100);
+      box.innerHTML = `<div class="upbox"><b>Загружено ${st.filter((x) => x.s === 'ok').length} из ${st.length} · ${pct}%</b>${done < st.length ? ` · осталось ${st.length - done}` : ''}
+        <div class="bar" style="margin:8px 0"><i style="width:${Math.max(4, pct)}%"></i></div>
+        <ul class="uplist">${st.map((x) => `<li class="${x.s}"><i>${icon[x.s]}</i><span>${esc(x.f.name)}</span><small>${x.s === 'err' ? esc(x.why) : x.s === 'ok' ? 'загружено' : x.s === 'up' ? 'загружается' : 'в очереди'}</small></li>`).join('')}</ul></div>`;
+    };
     show();
     let next = 0;
     const worker = async () => {  // три загрузки одновременно: через туннель одна за другой слишком долго
-      while (next < files.length) {
-        const f = files[next++];
+      while (next < st.length) {
+        const x = st[next++]; x.s = 'up'; show();
         try {
-          const small = await shrink(f);
+          const small = await shrink(x.f);
           const fd = new FormData(); fd.append('files', small, small.name);
           const r = await api(`/projects/${project.id}/photos`, { method: 'POST', form: fd });
-          rejected = rejected.concat(r.rejected); okCount += r.added || 0;
-        } catch (x) { rejected.push({ name: f.name, reason: x instanceof NetErr ? 'нет связи' : x.message }); }
-        doneN++; show();
+          if (r.added) x.s = 'ok'; else { x.s = 'err'; x.why = (r.rejected[0] && r.rejected[0].reason) || 'не подошёл файл'; x.final = true; }
+        } catch (err) { x.s = 'err'; x.why = err instanceof NetErr ? 'нет связи' : err.message; }
+        show();
       }
     };
     await Promise.all([worker(), worker(), worker()]);
     track('photos_uploaded');
+    const failed = st.filter((x) => x.s === 'err');
+    state.retryUp = failed.filter((x) => !x.final).map((x) => x.f);
     await viewProject(project.id, 'photos');
-    if (rejected.length) $('#up').innerHTML = `<div class="note bad"><b>Не удалось загрузить ${rejected.length} фото. Остальные сохранены${okCount ? ` (${okCount})` : ''}.</b><br>${rejected.map((r) => `${esc(r.name)}: ${esc(r.reason)}`).join('<br>')}<label class="btn sm line" for="file" style="cursor:pointer">Повторить загрузку</label></div>`;
+    if (failed.length) {
+      $('#up').innerHTML = `<div class="note bad"><b>Не загрузилось ${failed.length} из ${st.length}. Остальные сохранены.</b>
+        <ul class="uplist">${failed.map((x) => `<li class="err"><i>!</i><span>${esc(x.f.name)}</span><small>${esc(x.why)}</small></li>`).join('')}</ul>
+        ${state.retryUp.length ? `<button class="btn sm" data-act="retryup">Повторить загрузку (${state.retryUp.length})</button>` : ''}</div>`;
+    }
   };
+  $('#file').onchange = (e) => { const files = [...e.target.files]; if (files.length) upload(files); };
   const again = () => viewProject(project.id, 'photos');
   state.ctx = {
     next: () => go(`/project/${project.id}/edit`),
+    retryup: () => { const f = state.retryUp || []; state.retryUp = []; if (f.length) upload(f); },
+    formats: () => toast('Поддерживаем JPEG, PNG, HEIC с iPhone, WEBP, TIFF и BMP, до 15 МБ каждое'),
     clean: (el) => doCleanup(project, el.dataset.kind, again),
     params: () => paramsSheet(project, again),
     toggleedit: () => go(`/project/${project.id}/photos${editMode ? '' : '?m=edit'}`),

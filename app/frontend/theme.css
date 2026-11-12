@@ -50,3 +50,27 @@ html.dark .tile .n{background:rgba(0,0,0,.65);color:#fff}
 html.dark .busy{background:rgba(0,0,0,.7);color:#fff}
 html.dark .mini .danger{color:#ff9b8f}
 html.calm .btn:not(.line):not(.grey):not(.danger) small{color:#fff}
+
+/* ---------- аудит читаемости (вкладка 11, п. 7–8) ---------- */
+/* на жёлтом и золотистом фоне текст всегда тёмный, в любой теме */
+html.dark .menu.y,html.dark .nav a.on span,html.dark .pillbtn,html.dark .seg>.on,html.dark .tabs a.on,html.dark .tabs4 button.on,
+html.dark .tile .back,html.dark .dots i.on,html.dark .tl li.cur>i,html.dark .statusrow .dot.w,html.dark .chip.y,
+html.dark .onb .btn{color:#171717}
+html.dark .menu.y svg,html.dark .tabs4 button.on svg,html.dark .seg>.on svg,html.dark .tile .back svg{stroke:#171717}
+html.dark .menu.y{background:var(--y)}
+html.dark .seg>.on,html.dark .tabs4 button.on{background:var(--y);border-color:var(--y)}
+html.dark .chip.y{background:var(--y)}
+/* «+» внизу: без жёлтого свечения, спокойная тень */
+html.calm .nav a.plus i,html.dark .nav a.plus i{box-shadow:0 6px 14px -6px rgba(15,59,89,.55)}
+html.dark .nav a.plus i{box-shadow:0 4px 12px -4px rgba(0,0,0,.7)}
+/* белый текст: в тёмной теме чуть ярче основной и вторичный, в светлой — без белого на светлом */
+html.dark{--ink:#f3f1ed;--muted:#b9b4ad}
+html.dark .hero h1{text-shadow:0 1px 8px rgba(0,0,0,.35)}
+html.dark .msg{background:#2a2e33}
+html.dark .tile .w.soft{background:rgba(20,22,25,.85);color:#e8e6e2}
+html.dark .softtip{background:#24282d}
+html.dark .tcard .chips .chip{background:#2a2e33;color:#e8e6e2}
+html.dark .ba figcaption{background:rgba(0,0,0,.6);color:#fff}
+html.dark .btn.grey{background:#2a2e33;color:var(--ink)}
+html.dark .btn.grey svg{stroke:var(--ink)}
+html.dark .seg>.on[style]{background:var(--y)!important;color:#171717}

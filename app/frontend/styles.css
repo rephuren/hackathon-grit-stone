@@ -378,3 +378,19 @@ h2.sec{font-size:18px;margin:16px 0 8px}
 .fn-type,.pg.fn-type .cap,.pg.fn-type.t-cover b{font-family:"Courier New",monospace}
 
 .soon-card{margin-top:12px;opacity:.85;border-style:dashed}.soon-card .chip.soon{margin-left:8px;vertical-align:2px}
+
+/* шаг фото по макету дизайнера */
+.stepline{margin:-10px 0 10px;color:var(--muted);font-size:13px;font-weight:700}
+.rowbtn .chg{font-size:13.5px;color:var(--muted);font-weight:700;margin-left:auto}
+.addempty{text-align:center;padding:22px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.addempty h2{margin:4px 0 0;font-size:19px}.addempty p{margin:0}
+.linkbtn{border:0;background:none;padding:0;font:inherit;color:var(--ink);text-decoration:underline;min-height:32px}
+.upbox{background:var(--sub);border-radius:14px;padding:12px;margin:10px 0}
+.uplist{list-style:none;margin:0;padding:0;max-height:180px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+.uplist li{display:flex;align-items:center;gap:8px;font-size:13.5px}
+.uplist li i{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:800;background:var(--line)}
+.uplist li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uplist li small{flex:none;color:var(--muted)}
+.uplist li.ok i{background:#d8f0e0;color:#146c43}.uplist li.err i{background:#f8d7d3;color:#b42318}.uplist li.err small{color:#b42318}
+.uplist li i .spin{margin:0;width:14px;height:14px}
+.note.bad .uplist{margin:8px 0}

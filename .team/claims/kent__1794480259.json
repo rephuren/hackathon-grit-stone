@@ -1,0 +1,12 @@
+{
+  "who": "kent",
+  "task": "Финальный аудит: настоящий календарь с годом/сеткой дат и корректная подсказка автоочистки",
+  "paths": [
+    "app/frontend/app.js",
+    "app/frontend/styles.css",
+    "app/backend/catalog.py",
+    "app/tests/test_api.py"
+  ],
+  "created": 1794480259,
+  "updated": 1794480259
+}

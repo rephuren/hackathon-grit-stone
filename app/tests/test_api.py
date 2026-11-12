@@ -749,6 +749,8 @@ def test_assistant_mary_sim_uses_openai_compatible_llm(client, anna, monkeypatch
     seen = {}
 
     class R:
+        status_code = 200
+
         def raise_for_status(self):
             pass
 

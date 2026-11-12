@@ -200,18 +200,43 @@ function heroHtml() {
 }
 
 /* ---------- вход ---------- */
+const LOGIN_RE = /^[A-Za-z0-9_.-]{3,32}$/;
+const passwordInput = (id, autocomplete) => `<div class="password-field"><input id="${id}" type="password" autocomplete="${autocomplete}" maxlength="128" required><button type="button" class="password-toggle" data-password="${id}" aria-label="Показать пароль" aria-pressed="false">Показать</button></div>`;
+function bindPasswordToggles(root = document) {
+  $('[data-password]', root).forEach((btn) => {
+    btn.onclick = () => {
+      const input = root.querySelector('#' + btn.dataset.password);
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.textContent = show ? 'Скрыть' : 'Показать';
+      btn.setAttribute('aria-label', show ? 'Скрыть пароль' : 'Показать пароль');
+      btn.setAttribute('aria-pressed', String(show));
+      input.focus({ preventScroll: true });
+    };
+  });
+}
+function loginProblem(login) {
+  if (/[А-Яа-яЁё]/.test(login)) return 'Используйте в логине латинские буквы.';
+  if (!LOGIN_RE.test(login)) return 'Логин: 3–32 символа — латинские буквы, цифры, точка, дефис или _.';
+  return '';
+}
 async function viewLogin() {
   shell(`${heroHtml()}
   <section class="topsheet"><button class="btn" data-act="guest">Начать без регистрации</button><p class="why">Тестовая версия: деньги не списываются</p>
   <h2>Вход по логину</h2>
-  <form id="lf"><label class="lb" for="lg">Логин</label><input id="lg" type="text" autocomplete="username" required>
-  <label class="lb" for="pw">Пароль</label><input id="pw" type="password" autocomplete="current-password" required>
+  <form id="lf"><label class="lb" for="lg">Логин</label><input id="lg" type="text" autocomplete="username" maxlength="32" autocapitalize="none" autocorrect="off" required>
+  <p class="field-hint">Только латинские буквы, цифры, точка, дефис и _</p>
+  <label class="lb" for="pw">Пароль</label>${passwordInput('pw', 'current-password')}
   <div id="lerr"></div><p></p><button class="btn line" type="submit">Войти</button></form>
   <p class="muted" style="margin-top:14px">Нет аккаунта? <a href="#" data-act="account" data-mode="register"><u>Создать</u></a></p>
 </section>`, { noNav: true });
+  bindPasswordToggles($('#lf'));
   $('#lf').onsubmit = async (e) => {
     e.preventDefault();
-    try { await auth('/auth/login', { login: $('#lg').value.trim(), password: $('#pw').value }); } catch (x) { $('#lerr').innerHTML = `<div class="note bad">${esc(x.message)}</div>`; }
+    const login = $('#lg').value.trim();
+    const problem = loginProblem(login);
+    if (problem) { $('#lerr').innerHTML = `<div class="note bad">${esc(problem)}</div>`; return; }
+    try { await auth('/auth/login', { login, password: $('#pw').value }); } catch (x) { $('#lerr').innerHTML = `<div class="note bad">${esc(x.message)}</div>`; }
   };
 }
 async function auth(path, body) {
@@ -226,14 +251,20 @@ function accountSheet(mode) {
   const guest = !!(state.user && state.user.guest);
   sheet(`<h2>${reg ? 'Создать аккаунт' : 'Вход в аккаунт'}</h2>${guest ? '<p class="muted">Ваши проекты и заказы из гостевого режима сохранятся в аккаунте.</p>' : ''}
   <label class="lb" for="al">Логин</label><input id="al" type="text" autocomplete="username" maxlength="32" autocapitalize="none" autocorrect="off">
-  <label class="lb" for="ap">Пароль${reg ? ' (не короче 6 символов)' : ''}</label><input id="ap" type="password" autocomplete="${reg ? 'new-password' : 'current-password'}" maxlength="128">
+  <p class="field-hint">3–32 символа: латиница, цифры, точка, дефис или _</p>
+  <label class="lb" for="ap">Пароль${reg ? ' (не короче 6 символов)' : ''}</label>${passwordInput('ap', reg ? 'new-password' : 'current-password')}
   <div id="aerr"></div><button class="btn" id="ago" style="margin-top:12px">${reg ? 'Создать аккаунт' : 'Войти'}</button>
   <p class="muted" style="margin-top:12px"><a href="#" data-act="account" data-mode="${reg ? 'login' : 'register'}"><u>${reg ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Создать'}</u></a></p>`, (box) => {
+    bindPasswordToggles(box);
     const btn = box.querySelector('#ago');
     btn.onclick = async () => {
+      const login = box.querySelector('#al').value.trim();
+      const password = box.querySelector('#ap').value;
+      const problem = loginProblem(login) || (reg && password.length < 6 ? 'Пароль должен содержать не меньше 6 символов.' : '');
+      if (problem) { box.querySelector('#aerr').innerHTML = `<div class="note bad">${esc(problem)}</div>`; return; }
       btn.disabled = true;
       try {
-        const body = { login: box.querySelector('#al').value.trim(), password: box.querySelector('#ap').value };
+        const body = { login, password };
         if (guest) body.merge_token = state.token;
         const r = await api(reg ? '/auth/register' : '/auth/login', { method: 'POST', body });
         state.token = r.token; state.user = r.user; store.set('pp_token', r.token); state.home = null;

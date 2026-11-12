@@ -35,6 +35,14 @@ PRODUCTS = [
      "options": {"sizes": [{"id": "21x30", "label": "21 × 30 см", "w": 21, "h": 30, "base": 10050}],
                  "covers": [{"id": "matte", "label": "Матовая"}],
                  "extra_per_2_pages": 500, "base_pages": 10, "production_days": 3}},
+    {"id": "calendar", "kind": "calendar", "title": "Настенный календарь",
+     "descr": "Обложка и 12 месяцев с вашими фотографиями", "min_photos": 12,
+     "pages": {"min": 12, "max": 12, "step": 1, "default": 12},
+     "options": {"sizes": [
+         {"id": "a4", "label": "A4 · 21 × 30 см", "w": 21, "h": 30, "base": 4500},
+         {"id": "30x30", "label": "30 × 30 см", "w": 30, "h": 30, "base": 6500}],
+         "covers": [{"id": "spiral", "label": "Пружина"}, {"id": "bar", "label": "Планка"}],
+         "production_days": 3}},
     {"id": "print", "kind": "print", "title": "Печать фото",
      "descr": "Отпечатки на фотобумаге, от одной штуки", "min_photos": 1, "pages": None,
      "options": {"sizes": [
@@ -81,9 +89,9 @@ def size_of(product: dict, size_id) -> dict:
 
 def default_settings(product: dict) -> dict:
     o = product["options"]
-    key = "cover" if product["kind"] == "book" else "finish"
+    key = "cover" if product["kind"] in ("book", "calendar") else "finish"
     s = {"size": o["sizes"][0]["id"], key: o["covers"][0]["id"], "copies": 1}
-    if product["kind"] == "book":
+    if product["kind"] in ("book", "calendar"):
         s["pages"] = product["pages"]["default"]
     return s
 
@@ -95,7 +103,7 @@ def validate_settings(product: dict, settings: dict) -> dict:
     out.update({k: v for k, v in (settings or {}).items() if k in out})
     if out["size"] not in [s["id"] for s in o["sizes"]]:
         raise PricingError("Неизвестный размер")
-    key = "cover" if product["kind"] == "book" else "finish"
+    key = "cover" if product["kind"] in ("book", "calendar") else "finish"
     if out[key] not in [c["id"] for c in o["covers"]]:
         raise PricingError("Неизвестная обложка/поверхность")
     try:
@@ -104,7 +112,7 @@ def validate_settings(product: dict, settings: dict) -> dict:
         raise PricingError("Количество должно быть числом")
     if not 1 <= out["copies"] <= 20:
         raise PricingError("Количество: от 1 до 20")
-    if product["kind"] == "book":
+    if product["kind"] in ("book", "calendar"):
         p = product["pages"]
         try:
             out["pages"] = int(out["pages"])
@@ -133,6 +141,10 @@ def compute_price(product: dict, settings: dict, n_photos: int, promo=None, deli
         extra = max(0, settings["pages"] - o["base_pages"]) // 2
         unit = size["base"] + extra * o["extra_per_2_pages"]
         lines = [{"title": f"{product['title']} {size['label']}, {settings['pages']} стр.",
+                  "qty": copies, "unit": unit, "sum": unit * copies}]
+    elif product["kind"] == "calendar":
+        unit = size["base"]
+        lines = [{"title": f"{product['title']} {size['label']}, 12 месяцев",
                   "qty": copies, "unit": unit, "sum": unit * copies}]
     else:
         qty = n_photos * copies

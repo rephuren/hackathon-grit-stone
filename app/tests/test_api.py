@@ -106,6 +106,51 @@ def test_price_rules(client, anna):
     assert bad.status_code == 422
 
 
+def test_calendar_product_price_and_layout(client, anna):
+    products = client.get("/api/products").json()
+    calendar = next(p for p in products if p["id"] == "calendar")
+    assert calendar["kind"] == "calendar"
+    assert calendar["min_photos"] == 12
+    assert calendar["pages"] == {"min": 12, "max": 12, "step": 1, "default": 12}
+
+    pid = new_project(client, anna, "calendar")
+    project = client.get(f"/api/projects/{pid}", headers=anna).json()
+    assert project["settings"]["pages"] == 12
+    assert project["settings"]["cover"] == "spiral"
+
+    price = client.post("/api/price", json={
+        "product_id": "calendar",
+        "settings": {"size": "a4", "cover": "spiral", "pages": 12, "copies": 2},
+        "n_photos": 12,
+    }, headers=anna)
+    assert price.status_code == 200, price.text
+    assert price.json()["subtotal"] == 9000
+    assert "12 месяцев" in price.json()["lines"][0]["title"]
+
+    bad = client.post("/api/price", json={
+        "product_id": "calendar",
+        "settings": {"size": "a4", "cover": "spiral", "pages": 11},
+    }, headers=anna)
+    assert bad.status_code == 422
+
+    pictures = []
+    for i in range(12):
+        color = (25 + i * 15, 60 + i * 8, 180 - i * 7)
+        pictures.append((f"month-{i + 1}.jpg", jpeg(Image.new("RGB", (1200, 1200), color))))
+    uploaded = client.post(f"/api/projects/{pid}/photos", files=files(*pictures), headers=anna)
+    assert uploaded.status_code == 200 and uploaded.json()["added"] == 12, uploaded.text
+
+    before = client.get(f"/api/projects/{pid}/check", headers=anna).json()
+    assert any(b["code"] == "no_layout" for b in before["blocking"])
+    made = client.post(f"/api/projects/{pid}/automaket", headers=anna)
+    assert made.status_code == 200, made.text
+    layout = made.json()["layout"]
+    assert len(layout["pages"]) == 12 and layout["unplaced"] == 0
+    checked = client.get(f"/api/projects/{pid}/check", headers=anna).json()
+    assert checked["ok"] is True
+    assert not checked["blocking"]
+
+
 def test_preflight_and_full_order_flow(client, anna):
     pid = new_project(client, anna)
     good = [(f"ok{i}.jpg", jpeg(noise())) for i in range(7)]

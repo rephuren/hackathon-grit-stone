@@ -405,7 +405,7 @@ def touch(c, pid: str):
 
 
 def regen_layout(c, row, product: dict, sort: str, theme: str = ""):
-    if product["kind"] != "book":
+    if product["kind"] == "print":
         return None
     photos = photos_of(c, row["id"], True)
     settings = json.loads(row["settings"])
@@ -1126,10 +1126,10 @@ def automaket(pid: str, sort: str = Query("date", pattern="^(date|manual)$"),
         row = own_project(c, pid, user)
         ensure_draft(row)
         product = get_product(c, row["product_id"])
-        if product["kind"] != "book":
-            raise err(422, "not_book", "Автомакет нужен только для фотокниг")
+        if product["kind"] == "print":
+            raise err(422, "no_layout", "Автомакет недоступен для обычной печати фото")
         if not photos_of(c, pid, True):
-            raise err(422, "no_photos", "Сначала добавьте фото в книгу")
+            raise err(422, "no_photos", "Сначала добавьте фотографии")
         regen_layout(c, row, product, sort, theme)
         touch(c, pid)
         D.audit(c, user, "automaket", f"project:{pid}", "ok", f"sort={sort} theme={theme}")

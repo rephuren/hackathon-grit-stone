@@ -640,6 +640,7 @@ def test_projects_list_links_ordered_project_to_its_order(client, anna):
 
 def test_image_generation_queues_parallel_requests(monkeypatch):
     """Пять одновременных запросов не получают отказ: встают в очередь и выполняются по одному."""
+    pytest.importorskip("torch", reason="нужна необязательная зависимость torch (AI-генерация)")
     import threading
     import time as _t
 

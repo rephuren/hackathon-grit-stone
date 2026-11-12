@@ -253,4 +253,3 @@ def sources(user=Depends(pulse_user)):
         raise _err(403, "forbidden", "Источники доступны аналитику")
     with D.db() as c:
         return PD.source_health(c)
-

@@ -196,4 +196,3 @@ def source_health(c):
         result.append({"source": source, "table": table, "records": count, "updated_at": updated,
                        "data": kind, "missing": 0, "duplicates": 0})
     return result
-

@@ -705,8 +705,11 @@ def patch_project(pid: str, body: ProjectPatch, user: dict = Depends(current_use
                 clean = C.validate_settings(product, merged)
             except C.PricingError as exc:
                 raise err(422, "bad_options", str(exc))
+            old = json.loads(row["settings"])
             c.execute("UPDATE projects SET settings=? WHERE id=?", (json.dumps(clean), pid))
-            relayout = "manual" if row["layout"] else None
+            layout_keys = {k for k in clean if k not in ("shape", "font")}  # форма и шрифт раскладку не меняют
+            if any(old.get(k) != clean[k] for k in layout_keys):
+                relayout = "manual" if row["layout"] else None
         if body.photo_order is not None:
             ids = [p["id"] for p in photos_of(c, pid)]
             if sorted(ids) != sorted(body.photo_order):
@@ -1415,6 +1418,7 @@ def order_json(c, row) -> dict:
             "price": json.loads(row["price"]), "delivery": json.loads(row["delivery"]), "promo": row["promo"],
             "project_title": row["project_title"], "product_title": row["product_title"],
             "photos_count": row["photos_count"], "created_at": row["created_at"], "eta": row["eta"],
+            "design": json.loads(row["design"]) if row["design"] else None,
             "events": events, "next": nxt, "tracking": tracking_for(row),
             "tickets": [{"id": t["id"], "text": t["text"], "status": t["status"], "created_at": t["created_at"]}
                         for t in c.execute("SELECT * FROM tickets WHERE order_id=? ORDER BY id", (row["id"],))]}
@@ -1448,17 +1452,25 @@ def create_order(body: OrderIn, idempotency_key: str = Header(default="", alias=
         res = P.check_project(product, settings, photos, json.loads(proj["layout"]) if proj["layout"] else None)
         if res["blocking"]:
             D.audit(c, user, "order_create", f"project:{proj['id']}", "blocked", res["blocking"][0]["code"])
+            c.commit()  # запись об отказе должна остаться, даже когда ответ — ошибка (иначе её откатит транзакция)
             raise err(422, "project_not_ready", res["blocking"][0]["message"], blocking=res["blocking"])
         if res["warnings"] and not body.accept_warnings:
+            D.audit(c, user, "order_create", f"project:{proj['id']}", "blocked", "warnings_need_ack")
+            c.commit()
             raise err(409, "warnings_need_ack", "В проекте есть предупреждения. Исправьте их или продолжите осознанно",
                       warnings=res["warnings"])
         d = body.delivery
+        bad_delivery = None
         if d.method not in C.DELIVERY:
-            raise err(422, "bad_delivery", "Неизвестный способ получения")
-        if d.method == "pvz" and d.pvz_id not in [p["id"] for p in C.PICKUP_POINTS]:
-            raise err(422, "bad_delivery", "Выберите пункт выдачи")
-        if d.method in ("belpost", "courier") and not (d.address or "").strip():
-            raise err(422, "bad_delivery", "Укажите адрес доставки")
+            bad_delivery = "Неизвестный способ получения"
+        elif d.method == "pvz" and d.pvz_id not in [p["id"] for p in C.PICKUP_POINTS]:
+            bad_delivery = "Выберите пункт выдачи"
+        elif d.method in ("belpost", "courier") and not (d.address or "").strip():
+            bad_delivery = "Укажите адрес доставки"
+        if bad_delivery:
+            D.audit(c, user, "order_create", f"project:{proj['id']}", "blocked", "bad_delivery")
+            c.commit()
+            raise err(422, "bad_delivery", bad_delivery)
         try:
             price_ = C.compute_price(product, settings, len(photos), body.promo, d.method)
         except C.PricingError as exc:
@@ -1470,13 +1482,16 @@ def create_order(body: OrderIn, idempotency_key: str = Header(default="", alias=
             pt = next(p for p in C.PICKUP_POINTS if p["id"] == d.pvz_id)
             dd["pvz_name"], dd["pvz_address"] = pt["name"], pt["address"]
         eta = (datetime.now(timezone.utc) + timedelta(days=price_["production_days"] + 1)).date().isoformat()
+        lay = json.loads(proj["layout"]) if proj["layout"] else {}
+        design = {"shape": settings.get("shape"), "font": settings.get("font"), "theme": (lay or {}).get("theme")} \
+            if product["kind"] in ("book", "calendar") else None
         try:
             cur = c.execute(
                 "INSERT INTO orders(user_id,project_id,project_title,product_title,photos_count,idem_key,status,total_kop,"
-                "price,delivery,promo,eta,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "price,delivery,promo,eta,created_at,design) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (user["id"], proj["id"], proj["title"], product["title"], len(photos), key, "accepted",
                  price_["total"], json.dumps(price_), json.dumps(dd, ensure_ascii=False),
-                 price_["promo"], eta, D.now_iso()))
+                 price_["promo"], eta, D.now_iso(), json.dumps(design) if design else None))
         except sqlite3.IntegrityError:  # гонка двух одинаковых запросов
             dup = c.execute("SELECT * FROM orders WHERE user_id=? AND idem_key=?", (user["id"], key)).fetchone()
             out = order_json(c, dup)

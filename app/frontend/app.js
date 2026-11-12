@@ -737,9 +737,12 @@ async function stepPhotos(project) {
     const box = $('#up'); const st = files.map((f) => ({ f, s: 'wait', why: '' }));
     const icon = { wait: '○', up: '<span class="spin"></span>', ok: '✓', err: '!' };
     const show = () => {
-      const done = st.filter((x) => x.s === 'ok' || x.s === 'err').length, pct = Math.round((done / st.length) * 100);
-      box.innerHTML = `<div class="upbox"><b>Загружено ${st.filter((x) => x.s === 'ok').length} из ${st.length} · ${pct}%</b>${done < st.length ? ` · осталось ${st.length - done}` : ''}
-        <div class="bar" style="margin:8px 0"><i style="width:${Math.max(4, pct)}%"></i></div>
+      /* Процент — только доля РЕАЛЬНО загруженных файлов; не загрузившиеся в него не входят (раньше «0 из 1 · 100%» при сбое). */
+      const ok = st.filter((x) => x.s === 'ok').length, bad = st.filter((x) => x.s === 'err').length, left = st.length - ok - bad;
+      const pct = Math.round((ok / st.length) * 100), badPct = Math.round((bad / st.length) * 100);
+      const head = left ? `Загружено ${ok} из ${st.length} · ${pct}%` : bad ? `Загружено ${ok} из ${st.length}. Не загрузилось: ${bad}` : `Загружено ${ok} из ${st.length}`;
+      box.innerHTML = `<div class="upbox" role="status"><b>${head}</b>${left ? ` · осталось ${left}` : ''}
+        <div class="bar" style="margin:8px 0" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i>${bad ? `<i class="badseg" style="width:${badPct}%"></i>` : ''}</div>
         <ul class="uplist">${st.map((x) => `<li class="${x.s}"><i>${icon[x.s]}</i><span>${esc(x.f.name)}</span><small>${x.s === 'err' ? esc(x.why) : x.s === 'ok' ? 'загружено' : x.s === 'up' ? 'загружается' : 'в очереди'}</small></li>`).join('')}</ul></div>`;
     };
     show();
@@ -1191,7 +1194,8 @@ async function stepLayout(project) {
   const calendar = project.product.kind === 'calendar';
   if (calendar) pages.forEach((pg, i) => { pg.month = CAL_MONTHS[i] || `Месяц ${i + 1}`; pg.monthIndex = i; pg.year = project.settings.year || new Date().getFullYear() + 1; });
   curTheme = (lay && lay.theme) || 'classic';
-  curShape = store.get('pp_shape_' + project.id) || 'square'; curFont = store.get('pp_font_' + project.id) || 'base';
+  /* Форма фото и шрифт хранятся в проекте на сервере (видны на другом устройстве и попадают в заказ); старый локальный выбор — запасной */
+  curShape = project.settings.shape || store.get('pp_shape_' + project.id) || 'square'; curFont = project.settings.font || store.get('pp_font_' + project.id) || 'base';
   /* У календаря каждый месяц — отдельный лист; у книги страницы показываются разворотами. */
   const coverPage = { cover: true, title: `${project.title} · ${project.settings.year || ''}`.trim(), photo: incl[0] };
   const spreads = calendar ? [[coverPage, null]] : [[null, coverPage]];
@@ -1251,8 +1255,12 @@ async function stepLayout(project) {
       <label class="lb">Порядок фотографий</label>
       <div class="stack"><button class="rowbtn" data-sort="date">${ic('cal')}<span class="g">По дате съёмки<small>Группируем события по дням</small></span></button><button class="rowbtn" data-sort="manual">${ic('layers')}<span class="g">Мой порядок<small>Как на экране фотографий</small></span></button>
       <button class="rowbtn" data-act="closesheet" id="topar">${ic(calendar ? 'cal' : 'book')}<span class="g">${calendar ? 'Формат и крепление' : 'Формат и число страниц'}<small>${esc(paramsLabel(project))}</small></span>${ic('next', 20)}</button></div><div id="serr"></div>`, (root) => {
-        $$('[data-shape]', root).forEach((b) => (b.onclick = () => { store.set('pp_shape_' + project.id, b.dataset.shape); closeSheet(true); toast('Форма фото применена'); again(); }));
-        $$('[data-font]', root).forEach((b) => (b.onclick = () => { store.set('pp_font_' + project.id, b.dataset.font); closeSheet(true); toast('Шрифт применён'); again(); }));
+        const saveDesign = async (patch, msg) => {
+          try { await api(`/projects/${project.id}`, { method: 'PATCH', body: { settings: patch } }); closeSheet(true); toast(msg); again(); }
+          catch (x) { toast(x.message || 'Не удалось сохранить, попробуйте ещё раз'); }
+        };
+        $$('[data-shape]', root).forEach((b) => (b.onclick = () => saveDesign({ shape: b.dataset.shape }, 'Форма фото применена')));
+        $$('[data-font]', root).forEach((b) => (b.onclick = () => saveDesign({ font: b.dataset.font }, 'Шрифт применён')));
         $$('[data-theme]', root).forEach((b) => (b.onclick = async () => {
           if (b.dataset.theme === curTheme) return closeSheet();
           $$('[data-theme]', root).forEach((x) => (x.disabled = true));
@@ -1508,6 +1516,7 @@ async function viewOrder(id) {
     <div class="row">${book(o.cover, o.project_title, true)}<div class="card ${o.status === 'rejected' ? '' : 'y'} g row" style="min-height:84px${o.status === 'rejected' ? ';background:var(--bad-bg);border-color:transparent;color:var(--bad)' : ''}">${ic(o.status === 'completed' ? 'check' : o.status === 'rejected' ? 'warn' : o.status === 'ready' ? 'truck' : 'box', 34)}<b style="font-size:18px;line-height:1.2">${esc(LABELS[o.status] || o.status_label)}</b></div></div>
     ${V3 && o.status === 'accepted' ? tip('happy', 'Заказ принят! Ниже видно, на каком он этапе.', 'ord-' + o.id) : ''}
     ${timeline(o)}
+    ${o.design ? `<p class="muted" style="margin:0 0 10px">Оформление: ${esc((SHAPES.find((x) => x[0] === o.design.shape) || [0, 'прямые'])[1].toLowerCase())} фото · шрифт «${esc((FONTS.find((x) => x[0] === o.design.font) || [0, 'Manrope'])[1])}»</p>` : ''}
     <div class="note y"><b>TEST-заказ.</b> Оплата не списывалась. Заказ не передан в реальное производство: это демонстрация сценария.</div>
     ${active && o.eta ? `<p class="muted" style="margin-top:-6px">Ожидаем готовность к ${fmtDate(o.eta)}</p>` : ''}
     ${o.tracking ? `<div class="card"><b>Трек-номер: ${esc(o.tracking.number)}</b><p class="muted" style="margin:6px 0 0">${esc(o.tracking.carrier)}. Номер демонстрационный, реальной отправки нет: по нему клиент отслеживал бы посылку у службы доставки.</p></div>` : ''}

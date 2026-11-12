@@ -441,3 +441,6 @@ html.dark .tcard2.on{border-color:#ffda24}
 .mt{display:flex;flex-direction:column;gap:2px;min-width:0}.mt small{color:var(--muted)}
 html.dark .moment{border-color:#3a3f45}
 .hd:has(.steppill) h1{font-size:19px;letter-spacing:-.2px}
+
+/* прогресс загрузки: зелёная часть — загружено, красная — не загрузилось (процент считается только по загруженным) */
+.bar{display:flex}.bar .badseg{background:var(--bad,#9e3f45);width:0;height:100%}

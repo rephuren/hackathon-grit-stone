@@ -1,0 +1,14 @@
+{
+ "who": "kent",
+ "task": "Пульс PicPac: API, синтетические данные, интерфейс и тесты",
+ "paths": [
+  "app/backend/pulse.py",
+  "app/backend/pulse_data.py",
+  "app/frontend/pulse.html",
+  "app/frontend/pulse.js",
+  "app/frontend/pulse.css",
+  "app/tests/test_pulse.py"
+ ],
+ "created": 1794511328,
+ "updated": 1794511328
+}

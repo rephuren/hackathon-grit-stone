@@ -396,3 +396,10 @@ h2.sec{font-size:18px;margin:16px 0 8px}
 .note.bad .uplist{margin:8px 0}
 
 .card.cmd{border:2px solid var(--y)}.card.cmd b svg{vertical-align:-3px}
+
+/* редактор: без свечения над нижним блоком; кнопка «Оригинал»; картинку нельзя выделить или утащить на iOS */
+.dock,html.dark .dock{box-shadow:none;border-top:1px solid var(--line)}
+.mini{display:grid;grid-template-columns:1fr auto 1fr;gap:8px}
+.mini #cmp.on{background:var(--ink);color:var(--canvas)}
+#stage{-webkit-user-drag:none;pointer-events:auto}
+.stage img{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}

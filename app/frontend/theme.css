@@ -74,3 +74,38 @@ html.dark .ba figcaption{background:rgba(0,0,0,.6);color:#fff}
 html.dark .btn.grey{background:#2a2e33;color:var(--ink)}
 html.dark .btn.grey svg{stroke:var(--ink)}
 html.dark .seg>.on[style]{background:var(--y)!important;color:#171717}
+
+/* ---------- iPhone: фон всей страницы и нижняя панель ---------- */
+html{background:#e9e5df}
+html.dark{background:#141619;--bad-bg:#3a1d1d;--bad:#ff9b8f;--ok-bg:#173326;--ok:#7bd8a6;--warn:#f0c36b}
+/* размытие под нижней панелью на части телефонов и в Telegram не отрисовывается: делаем панель сплошной */
+html.v2 .nav{backdrop-filter:none;-webkit-backdrop-filter:none;background:#fff;transform:translateZ(0)}
+html.dark.v2 .nav,html.dark .nav{background:#1f2226}
+/* тёмная тема: оставшиеся светлые подложки */
+html.dark .dock{background:#141619;box-shadow:none}
+html.dark .btn.danger{background:#3a1d1d;color:#ffb4aa;border-color:#5a2a2a}
+html.dark .tl li>i,html.dark.v3 .rowbtn.order .oi{background:#2a2e33;color:var(--ink)}
+html.dark .sw::after{background:#e8e6e2}
+html.dark .card,html.dark .lead,html.dark .note{color:var(--ink)}
+html.dark [style*="background:#fff"]{background:var(--canvas)!important}
+html.dark .onb{background:linear-gradient(180deg,#1c3b54,#141619)}
+html.calm:not(.dark) .onb{background:linear-gradient(180deg,#0f3b59,#2a5876 70%,#7d929e)}
+html.calm .onb-skip{background:rgba(255,255,255,.18);color:#fff}
+/* установленное приложение (PWA) на весь экран: шапка-заставка уходит под строку состояния */
+.hero{margin-top:calc(-1 * env(safe-area-inset-top));border-top:env(safe-area-inset-top) solid transparent}
+html.dark #app{background:#141619}
+
+/* ---------- на весь экран, как у банковских приложений: шапка под чёлкой ---------- */
+/* полоса под строкой состояния (видна в установленном приложении): тёмная, белые часы читаются на любом экране */
+body::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top);background:#171717;z-index:100;pointer-events:none}
+html.calm body::before{background:#0f3b59}
+html.dark body::before{background:#141619}
+html.hashero body::before{background:transparent}
+/* в браузере верх страницы (область под чёлкой и «оттяжка» вверх) того же цвета, что и шапка */
+html.calm.hashero{background:linear-gradient(#0f3b59 0,#0f3b59 50%,#e9e5df 50%)}
+html.dark.calm.hashero{background:linear-gradient(#0f3b59 0,#0f3b59 50%,#141619 50%)}
+html.hashero #app{padding-top:0}
+.hero{margin-top:0;border-top:0;padding-top:calc(env(safe-area-inset-top) + 18px)}
+html.v3 .hero.v3h{padding-top:calc(env(safe-area-inset-top) + 18px);min-height:calc(222px + env(safe-area-inset-top))}
+html.calm.hashero body,html.dark.calm.hashero body{background:#0f3b59}
+html.dark .opt.on,html.dark .dlv .on,html.dark button.on:not(.th-pick):not(.fc){background:var(--y);color:#171717;border-color:var(--y)}

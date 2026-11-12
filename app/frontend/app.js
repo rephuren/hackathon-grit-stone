@@ -30,9 +30,10 @@ const platform = {
   },
   paint() {  // цвет шапки Telegram и строки состояния под текущую тему
     const dark = document.documentElement.classList.contains('dark');
-    const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = dark ? '#141619' : '#ffffff';
+    const root = document.documentElement, hero = root.classList.contains('hashero') && root.classList.contains('calm');
+    const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = hero ? '#0f3b59' : dark ? '#141619' : '#f8f6f3';
     if (!tg) return;
-    try { tg.setHeaderColor(dark ? '#141619' : '#ffffff'); tg.setBackgroundColor(dark ? '#141619' : '#ffffff'); } catch { /* старый клиент */ }
+    try { tg.setHeaderColor(hero ? '#0f3b59' : dark ? '#141619' : '#ffffff'); tg.setBackgroundColor(dark ? '#141619' : '#ffffff'); } catch { /* старый клиент */ }
   },
   setBack(visible) {  // системная кнопка «назад» (в Telegram), в остальных оболочках есть стрелка в шапке экрана
     if (tg && tg.BackButton) { try { visible ? tg.BackButton.show() : tg.BackButton.hide(); } catch { /* старый клиент */ } }
@@ -176,6 +177,8 @@ function shell(inner, { active, noNav, hasBack } = {}) {
   const app = $('#app');
   app.className = showNav ? '' : 'nonav';
   app.innerHTML = `<main>${inner}</main>${showNav ? nav(active) : ''}`;
+  document.documentElement.classList.toggle('hashero', inner.includes('class="hero'));  // шапка-заставка заходит под чёлку
+  platform.paint();
   platform.setBack(hasBack);
   window.scrollTo(0, 0);
 }
@@ -680,10 +683,10 @@ async function stepEdit(project) {
   shell(`<div class="stage"><img id="stage" alt="Фото в редакторе" src="${ph.proxy || ph.url}">
     <button class="fab bk" data-act="back" aria-label="Назад к фотографиям">${ic('back')}</button>
     <div class="fabs"><button class="fab lbl" data-tab="crop" aria-label="Кадр">${ic('crop')}<small>Кадр</small></button><button class="fab lbl" data-tab="text" aria-label="Текст">${ic('text')}<small>Текст</small></button><button class="fab lbl" data-tab="ai" aria-label="Улучшение">${ic('spark')}<small>AI</small></button></div>
-    <span class="hint" id="shint">Зажмите фото — покажу оригинал</span>
+    <span class="hint hide" id="shint">Двигайте фото пальцем</span>
     <span class="busy hide" id="busy">Обновляем…</span></div>
   <div class="strip" id="strip">${project.photos.map((p, i) => `<button class="${i === idx ? 'on' : ''}" data-i="${i}" aria-label="Фото ${i + 1}"><img src="${p.thumb}" alt=""></button>`).join('')}</div>
-  <div class="mini"><button data-act="undo" title="Отменить последнее действие">${ic('undo', 18)}Отменить шаг</button><button data-act="reset" class="danger" title="Убрать все правки этого фото">Сбросить все правки</button></div>
+  <div class="mini"><button data-act="undo" title="Отменить последнее действие">${ic('undo', 18)}Отменить</button><button id="cmp" type="button" aria-pressed="false" title="Показать исходное фото без правок">Оригинал</button><button data-act="reset" class="danger" title="Убрать все правки этого фото">Сбросить всё</button></div>
   <div class="panel" id="panel"></div>
   <div class="dock"><div class="tabs4" id="tabs"><button data-tab="filters">${ic('filters')}Фильтры</button><button data-tab="text">${ic('text')}Текст</button><button data-tab="crop">${ic('frame')}Кадр</button><button data-tab="ai">${ic('spark')}AI</button></div>
   <button class="btn" data-act="next">${project.product.kind === 'calendar' ? 'Собрать календарь' : hasLayout(project) ? 'Собрать альбом' : 'Проверить фото'}</button>
@@ -715,7 +718,7 @@ async function stepEdit(project) {
     }, fast ? 500 : 160);
   };
   const commit = () => { const now = JSON.stringify(edits); if (now !== snap) { hist.push(snap); if (hist.length > 40) hist.shift(); snap = now; dirty = true; const s = $('#savest'); if (s) s.textContent = 'Есть несохранённые правки: сохраним при переходе'; } };
-  const setTab = (t) => { tab = t; $$('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); const h = $('#shint'); if (h) h.textContent = t === 'crop' ? 'Двигайте фото пальцем' : 'Зажмите фото — покажу оригинал'; panel(); };
+  const setTab = (t) => { tab = t; $$('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); const h = $('#shint'); if (h) h.classList.toggle('hide', t !== 'crop'); panel(); };
   const chips = (items, cur, attr) => `<div class="opts">${items.map(([v, l]) => `<button type="button" class="opt ${cur === v ? 'on' : ''}" data-${attr}="${v}">${l}</button>`).join('')}</div>`;
   const slider = (label, attr, key, min, max, val, step = 1) => `<div class="ctl"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${val}" data-${attr}="${key}" aria-label="${label}"></div>`;
 
@@ -762,7 +765,7 @@ async function stepEdit(project) {
     } else {
       const bg = edits.bg ? edits.bg.mode : 'off';
       box.innerHTML = `<div class="card cmd" style="margin-top:10px"><b>${ic('spark', 18)} Изменить фото словами</b>
-      <p class="muted" style="margin:4px 0 8px">Напишите, что сделать с этим фото, — я применю нужные инструменты. Отменить можно кнопкой «Отменить шаг».</p>
+      <p class="muted" style="margin:4px 0 8px">Напишите, что сделать с этим фото, — я применю нужные инструменты. Отменить можно кнопкой «Отменить».</p>
       <form id="cmdf" class="askrow"><input id="cmdq" type="text" maxlength="300" placeholder="Например: сделай ярче и тёплым" autocomplete="off" aria-label="Что сделать с фото"><button class="btn sm" type="submit">Применить</button></form>
       <div class="opts" style="margin-top:8px">${['Сделай ярче', 'Чёрно-белое', 'Убери фон', 'Обрежь квадратом', 'Улучши качество'].map((t) => `<button type="button" class="opt" data-cmd="${t}">${t}</button>`).join('')}</div><div id="cmdmsg"></div></div>
       <div class="card" style="margin-top:10px"><b>Улучшить качество</b>${state.caps.upscale ? `<p class="muted">Нейросеть добавит чёткости и увеличит фото: сейчас ${ph.width}×${ph.height} px. Обработка на нашем сервере, фото никуда не передаётся. Занимает несколько секунд.</p>${ph.retouched ? '<div class="note y">После удаления объектов увеличить фото нельзя. Сначала верните исходное в блоке «Убрать объект».</div>' : ph.upscaled ? '<div class="note ok">Улучшение применено.</div><div id="upcmp"><span class="muted">Готовим сравнение…</span></div><button class="btn sm line" data-act="unup">Вернуть исходное качество</button>' : '<div class="two"><button class="btn sm" data-act="up2">Увеличить ×2</button><button class="btn sm line" data-act="up4">Увеличить ×4</button></div>'}` : '<p class="muted">В этой сборке недоступно: модель не установлена (см. README).</p>'}</div>
@@ -795,7 +798,7 @@ async function stepEdit(project) {
         }
         const unsup = later.some((o) => o.op === 'unsupported');
         const parts = [];
-        if (done.length) parts.push(`<div class="note ok"><b>Готово:</b> ${esc(done.join(', '))}. Не понравилось — «Отменить шаг».</div>`);
+        if (done.length) parts.push(`<div class="note ok"><b>Готово:</b> ${esc(done.join(', '))}. Не понравилось — «Отменить».</div>`);
         if (unsup) parts.push('<div class="note y">Добавлять новые предметы и менять людей на фото я пока не умею: эта функция в разработке. Могу поменять свет, цвет, фон, кадр и надпись.</div>');
         if (!r.ops.length) parts.push('<div class="note y">Не понял, что сделать. Попробуйте: «сделай ярче», «чёрно-белое», «убери фон», «обрежь квадратом».</div>');
         if (later.some((o) => o.op === 'upscale')) parts.push('<button class="btn sm" data-act="up2">Улучшить качество ×2</button>');
@@ -839,19 +842,19 @@ async function stepEdit(project) {
   const leave = async (path) => { if (await save()) go(path); };
   $$('#tabs button, .fabs .fab').forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
   $$('#strip button').forEach((b) => (b.onclick = () => { if (+b.dataset.i !== idx) leave(`/project/${project.id}/edit?i=${b.dataset.i}&tab=${tab}`); }));
-  /* Жесты на фото: во вкладке «Кадр» фото двигается пальцем; в остальных вкладках зажатие показывает оригинал (как в «Фото» на iPhone). */
+  /* Во вкладке «Кадр» фото двигается пальцем. Оригинал — отдельной кнопкой: зажатие картинки на iOS вызывает выделение и растягивание. */
   const stage = $('#stage'), show = (u) => { const st = $('#stage'); if (st) { st.style.filter = ''; st.src = u; } };
-  let drag = null, holdT = null, holding = false;
+  let drag = null, orig = false;
   stage.style.touchAction = 'none';
+  stage.draggable = false;
   stage.oncontextmenu = (e) => e.preventDefault();
   stage.onpointerdown = (e) => {
-    if (tab === 'crop') {
-      const c = edits.crop || { ratio: 'orig', zoom: 1, x: 0.5, y: 0.5 };
-      if (c.ratio === 'orig' && (c.zoom || 1) <= 1) return toast('Сначала увеличьте масштаб или выберите пропорции');
-      drag = { x: e.clientX, y: e.clientY, cx: c.x, cy: c.y, w: stage.clientWidth, h: stage.clientHeight, z: c.zoom || 1 };
-      stage.setPointerCapture(e.pointerId); return;
-    }
-    holdT = setTimeout(() => { holding = true; show(ph.orig); $('#shint').textContent = 'Оригинал'; }, 220);
+    if (tab !== 'crop') return;
+    const c = edits.crop || { ratio: 'orig', zoom: 1, x: 0.5, y: 0.5 };
+    if (c.ratio === 'orig' && (c.zoom || 1) <= 1) return toast('Сначала увеличьте масштаб или выберите пропорции');
+    e.preventDefault();
+    drag = { x: e.clientX, y: e.clientY, cx: c.x, cy: c.y, w: stage.clientWidth, h: stage.clientHeight, z: c.zoom || 1 };
+    stage.setPointerCapture(e.pointerId);
   };
   stage.onpointermove = (e) => {
     if (!drag) return;
@@ -861,19 +864,20 @@ async function stepEdit(project) {
     edits.crop = { ...(edits.crop || { ratio: 'orig', zoom: 1 }), x: +x.toFixed(3), y: +y.toFixed(3) };
     refresh();
   };
-  const endPress = () => {
-    if (drag) { drag = null; commit(); return; }
-    clearTimeout(holdT);
-    if (holding) { holding = false; show(objUrl || ph.proxy || ph.url); refresh(); $('#shint').textContent = 'Зажмите фото — покажу оригинал'; }
+  ['onpointerup', 'onpointercancel'].forEach((ev) => (stage[ev] = () => { if (drag) { drag = null; commit(); } }));
+  const cmp = $('#cmp');
+  cmp.onclick = () => {
+    orig = !orig; cmp.setAttribute('aria-pressed', String(orig)); cmp.classList.toggle('on', orig);
+    cmp.textContent = orig ? 'С правками' : 'Оригинал';
+    if (orig) show(ph.orig); else { show(objUrl || ph.proxy || ph.url); refresh(); }
   };
-  ['onpointerup', 'onpointercancel', 'onpointerleave'].forEach((ev) => (stage[ev] = endPress));
   setTab(tab);
   const sel = $('#strip .on'); if (sel && sel.scrollIntoView) sel.scrollIntoView({ inline: 'center', block: 'nearest' });
   state.backFn = () => leave(`/project/${project.id}/photos`);
   state.ctx = {
     back: state.backFn,
     undo: () => { if (!hist.length) return toast('Нечего отменять'); edits = JSON.parse(hist.pop()); snap = JSON.stringify(edits); dirty = true; refresh(); panel(); },
-    reset: () => { if (!Object.keys(edits).length) return toast('Правок нет'); edits = {}; commit(); refresh(); panel(); toast('Все правки фото сброшены. Вернуть: «Отменить шаг»'); },
+    reset: () => { if (!Object.keys(edits).length) return toast('Правок нет'); edits = {}; commit(); refresh(); panel(); toast('Все правки фото сброшены. Вернуть: «Отменить»'); },
     erase: async () => { if (await save()) eraseSheet(project, ph, async () => { await route(); }); },
     unerase: async (el) => { el.disabled = true; try { await api(`/projects/${project.id}/photos/${ph.id}/erase`, { method: 'DELETE' }); toast('Вернули фото как было'); await route(); } catch (x) { el.disabled = false; toast(x.message); } },
     tostudio: () => leave(`/project/${project.id}/ai?mode=create`),

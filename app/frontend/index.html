@@ -3,21 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#ffda24">
+  <meta name="theme-color" content="#f8f6f3">
   <title>picPac — от фото до фотокниги</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="picPac">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="vendor/leaflet.min.css">
   <link rel="stylesheet" href="fonts/fonts.css">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="design.css">
   <link rel="stylesheet" href="theme.css">
   <script>/* палитра и тема до отрисовки, чтобы не мигало */(function(){var d=document.documentElement,p='calm',t='auto';try{p=localStorage.getItem('pp_pal')||p;t=localStorage.getItem('pp_theme')||t}catch(e){}
-  if(p==='calm')d.classList.add('calm');var m=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)');function a(){d.classList.toggle('dark',t==='dark'||(t==='auto'&&!!(m&&m.matches)))}a();if(m&&m.addEventListener)m.addEventListener('change',a);window.ppTheme={pal:p,theme:t}})();</script>
+  if(p==='calm')d.classList.add('calm');var m=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)');function a(){d.classList.toggle('dark',t==='dark'||(t==='auto'&&!!(m&&m.matches)))}a();if(m&&m.addEventListener)m.addEventListener('change',a);var tc=document.querySelector('meta[name="theme-color"]');if(tc&&d.classList.contains('dark'))tc.content='#141619';window.ppTheme={pal:p,theme:t}})();</script>
 </head>
 <body>
   <div id="app"><p class="boot">Загрузка…</p></div>

@@ -30,10 +30,11 @@ const platform = {
   },
   paint() {  // цвет шапки Telegram и строки состояния под текущую тему
     const dark = document.documentElement.classList.contains('dark');
-    const root = document.documentElement, hero = root.classList.contains('hashero') && root.classList.contains('calm');
-    const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = hero ? '#0f3b59' : dark ? '#141619' : '#f8f6f3';
+    const root = document.documentElement, hero = root.classList.contains('hashero'), calm = root.classList.contains('calm');
+    const top = hero ? (calm ? '#0f3b59' : '#ffda24') : dark ? '#141619' : '#ffffff';  // цвет под чёлкой = цвет верха экрана
+    const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = top;
     if (!tg) return;
-    try { tg.setHeaderColor(hero ? '#0f3b59' : dark ? '#141619' : '#ffffff'); tg.setBackgroundColor(dark ? '#141619' : '#ffffff'); } catch { /* старый клиент */ }
+    try { tg.setHeaderColor(top); tg.setBackgroundColor(dark ? '#141619' : '#ffffff'); } catch { /* старый клиент */ }
   },
   setBack(visible) {  // системная кнопка «назад» (в Telegram), в остальных оболочках есть стрелка в шапке экрана
     if (tg && tg.BackButton) { try { visible ? tg.BackButton.show() : tg.BackButton.hide(); } catch { /* старый клиент */ } }
@@ -178,6 +179,7 @@ function shell(inner, { active, noNav, hasBack } = {}) {
   app.className = showNav ? '' : 'nonav';
   app.innerHTML = `<main>${inner}</main>${showNav ? nav(active) : ''}`;
   document.documentElement.classList.toggle('hashero', inner.includes('class="hero'));  // шапка-заставка заходит под чёлку
+  document.documentElement.classList.toggle('nonavpage', !showNav);
   platform.paint();
   platform.setBack(hasBack);
   window.scrollTo(0, 0);

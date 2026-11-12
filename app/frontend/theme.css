@@ -109,3 +109,49 @@ html.hashero #app{padding-top:0}
 html.v3 .hero.v3h{padding-top:calc(env(safe-area-inset-top) + 18px);min-height:calc(222px + env(safe-area-inset-top))}
 html.calm.hashero body,html.dark.calm.hashero body{background:#0f3b59}
 html.dark .opt.on,html.dark .dlv .on,html.dark button.on:not(.th-pick):not(.fc){background:var(--y);color:#171717;border-color:var(--y)}
+
+/* ---------- вкладка 11, последние правки ---------- */
+/* подложки цвета текста: в тёмной теме текст на них тёмный, а не белый */
+html.dark #toast{background:#eceae6;color:#171717}
+html.dark .tile .pin{background:#eceae6;color:#171717}
+/* жёлтая палитра в тёмной теме: на жёлтом всегда тёмный текст и тёмный «+» */
+html.dark:not(.calm) .btn:not(.line):not(.grey):not(.danger){color:#171717}
+html.dark:not(.calm) .btn:not(.line):not(.grey):not(.danger) svg,html.dark:not(.calm) .nav a.plus i svg{stroke:#171717}
+html.dark:not(.calm) .nav a.plus i{color:#171717}
+html.dark:not(.calm) .askfab{background:var(--y);color:#171717}
+/* «+» всегда заметен: сплошной круг с контрастным значком */
+.nav a.plus i svg{stroke-width:2.6}
+/* страница до краёв (как у банковских сайтов): панели Safari плавают поверх содержимого, без отдельных полос */
+#app{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
+#app>main{flex:1;display:flex;flex-direction:column}
+#app>main>.topsheet{flex:1}#app.nonav>main>.topsheet{padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+body{background:#fff}
+html.dark body{background:#141619}
+html:not(.calm).hashero body{background:#ffda24}
+html:not(.calm).hashero{background:#ffda24}
+/* верх страницы цвета шапки, низ — цвета нижней панели формы: Safari красит область под чёлкой и под своей панелью по краям страницы */
+html.calm.hashero body{background:linear-gradient(#0f3b59 0,#0f3b59 50%,#fff 50%)}
+html.dark.calm.hashero body{background:linear-gradient(#0f3b59 0,#0f3b59 50%,#1f2226 50%)}
+html:not(.calm).hashero body{background:linear-gradient(#ffda24 0,#ffda24 50%,#fff 50%)}
+html.dark:not(.calm).hashero body{background:linear-gradient(#ffda24 0,#ffda24 50%,#1f2226 50%)}
+html.calm.hashero,html.dark.calm.hashero,html:not(.calm).hashero{background:transparent}
+#app.nonav{padding-bottom:0}
+#app.nonav>main{padding-bottom:0}
+html.dark .topsheet{background:#1f2226}
+/* итог: сплошные цвета краёв (градиенты Safari не учитывает) — фон страницы = цвет низа, полоса сверху = цвет шапки */
+html.calm.hashero body,html:not(.calm).hashero body{background:#fff}
+html.dark.calm.hashero body,html.dark:not(.calm).hashero body{background:#1f2226}
+html.hashero body::before{height:max(env(safe-area-inset-top),6px);background:#0f3b59}
+html.hashero:not(.calm) body::before{background:#ffda24}
+/* Safari берёт цвет под чёлкой из верхнего элемента страницы, если у него сплошной цвет фона: даём шапке цвет под градиентом */
+html.calm .hero{background:linear-gradient(160deg,#0f3b59 0%,#2a5876 60%,#7d929e 100%) #0f3b59!important}
+html:not(.calm) .hero.v3h{background-color:#ffda24}
+html.hashero body::before{height:env(safe-area-inset-top)}
+/* Safari: цвет под чёлкой = фон body, цвет под нижней панелью = закреплённый элемент у нижнего края */
+html.calm.hashero body,html.dark.calm.hashero body{background:#0f3b59}
+html:not(.calm).hashero body,html.dark:not(.calm).hashero body{background:#ffda24}
+html.hashero body::before{display:none}
+html.hashero.nonavpage body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:20px;background:#fff;z-index:2;pointer-events:none}
+html.dark.hashero.nonavpage body::after{background:#1f2226}
+html.hashero.nonavpage body::after{height:84px}
+html.hashero.nonavpage #app>main>.topsheet{padding-bottom:calc(100px + env(safe-area-inset-bottom))}

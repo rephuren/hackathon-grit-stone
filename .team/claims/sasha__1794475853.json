@@ -1,0 +1,10 @@
+{
+ "who": "sasha",
+ "task": "календарь дня на двоих, обновление доски",
+ "paths": [
+  "docs/11-day-plan.md",
+  "docs/TEAM.md"
+ ],
+ "created": 1794475853,
+ "updated": 1794475853
+}

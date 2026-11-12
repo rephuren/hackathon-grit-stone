@@ -4,6 +4,7 @@ accelerate safetensors sentencepiece sacremoses).
   python scripts/fetch_models.py upscale   # только улучшение качества (5 МБ)
   python scripts/fetch_models.py bgremove  # удаление фона (5 МБ)
   python scripts/fetch_models.py inpaint   # удаление объектов (208 МБ)
+  python scripts/fetch_models.py moderation  # модерация фото, ViT AdamCodd/vit-base-nsfw-detector (≈350 МБ, Apache-2.0)
   python scripts/fetch_models.py imagegen  # генерация кадра по описанию + перевод ru→en (≈5,5 ГБ, явно по запросу)
 Без моделей приложение работает, соответствующие кнопки скрыты (генерация уходит на запасной внешний сервис).
 Лицензии: Real-ESRGAN (realesr-general-x4v3) — BSD-3-Clause; U²-Net (u2netp) — Apache-2.0; LaMa — Apache-2.0;
@@ -40,6 +41,10 @@ def fetch_imagegen():
 
 
 for key in (sys.argv[1:] or MODELS):
+    if key == "moderation":
+        from huggingface_hub import snapshot_download
+        print("Готово:", snapshot_download("AdamCodd/vit-base-nsfw-detector", allow_patterns=["*.json", "*.safetensors"]))
+        continue
     if key == "imagegen":
         fetch_imagegen()
         continue

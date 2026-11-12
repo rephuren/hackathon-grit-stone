@@ -42,6 +42,9 @@ class ImageRejected(Exception):
     pass
 
 
+NSFW_FLAG = 0.8  # порог пометки для оператора (см. moderation.py); не запрет, а ручная проверка
+
+
 def _taken_at(img):
     try:
         exif = img.getexif()
@@ -163,7 +166,7 @@ def merge_q(old, info: dict) -> str:
     """Свежие метрики кадра + сведения об исходном файле (формат, прозрачность, сжатие), которые не пересчитываются."""
     prev = json.loads(old) if old else {}
     q = dict(info["q"])
-    for k in ("fmt", "alpha", "bpp", "enh"):
+    for k in ("fmt", "alpha", "bpp", "enh", "nsfw"):  # nsfw: оценка модерации исходника не теряется после правок
         if k in prev:
             q[k] = prev[k]
     return json.dumps(q)
@@ -324,6 +327,10 @@ def quality_report(product: dict, settings: dict, photos: list, layout) -> dict:
             add(ph, "tip", "low_contrast", "Фото выглядит блёклым и плоским. «Улучшить» добавит контраста", ["enhance"])
         if q.get("noise", 0) > NOISE_MAX:
             add(ph, "tip", "noisy", "Заметный цифровой шум (съёмка в темноте или высокое ISO). На печати зерно будет видно", ["replace"])
+        if q.get("nsfw") is not None and q["nsfw"] >= NSFW_FLAG:
+            add(ph, "warn", "moderation",
+                "Фото может не пройти модерацию печати. Его посмотрит оператор. Если это ошибка, ничего делать не нужно",
+                ["remove"])
         if ph["id"] in dup_of:
             add(ph, "warn", "duplicate",
                 f"Похоже на фото {num[dup_of[ph['id']]]}. Лучше оставить то, что чётче и больше", ["remove"])

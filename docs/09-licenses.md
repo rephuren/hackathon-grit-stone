@@ -42,6 +42,7 @@
 | Удаление объекта | LaMa (ONNX) | huggingface.co/Carve/LaMa-ONNX | Apache-2.0 (оригинал advimman/lama) |
 | Генерация кадра по описанию | LCM Dreamshaper v7 (+ встроенный фильтр контента) | huggingface.co/SimianLuo/LCM_Dreamshaper_v7 | MIT (по карточке модели) |
 | Перевод описания ru→en | opus-mt-ru-en | huggingface.co/Helsinki-NLP/opus-mt-ru-en | CC-BY-4.0 (нужно указание авторства: Helsinki-NLP, OPUS-MT) |
+| Модерация фото (пометка для оператора) | vit-base-nsfw-detector (ViT) | huggingface.co/AdamCodd/vit-base-nsfw-detector | Apache-2.0 |
 
 ## Шрифт и логотип
 - Шрифт Manrope (Mikhail Sharanda), SIL Open Font License 1.1: лежит локально в `app/frontend/fonts/`, внешние CDN не нужны.
@@ -51,3 +52,4 @@
 ## Внешние сервисы
 - Генерация картинок по описанию: **по умолчанию локально** (модели выше, наружу ничего не уходит). Если локальной модели нет или задано `IMAGEGEN_LOCAL=0`, используется запасной бесплатный **Pollinations**: уходит только текст запроса (уже переведённый), фото не отправляются; ограничение сервиса 1 картинка в 45 секунд на адрес, на картинке может быть его водяной знак. Внешний вариант отключается `AI_GENERATE=0`.
 - Telegram Bot API (если задан токен бота).
+- Web Push (`pywebpush` MPL-2.0, `py-vapid` MPL-2.0, `http-ece` MIT): сервер отправляет зашифрованное ключом подписки уведомление в push-сервис браузера (Google FCM, Apple, Mozilla). Сервис видит только зашифрованный текст; фото не отправляются. Ключи VAPID создаются на сервере в `data/vapid.json`.

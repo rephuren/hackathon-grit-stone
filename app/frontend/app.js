@@ -8,7 +8,8 @@ const tgLaunch = (() => { try { return new URLSearchParams(location.hash.replace
 /* SDK Telegram подгружаем отдельно и не дольше 1,5 с: если telegram.org недоступен, приложение всё равно запустится. */
 function loadTelegram() {
   return new Promise((resolve) => {
-    const done = () => { tg = (window.Telegram && window.Telegram.WebApp) || null; resolve(); };
+    // SDK есть и в обычном браузере; внутри Telegram он получает подписанные данные запуска — только тогда мы «в Telegram»
+    const done = () => { const w = window.Telegram && window.Telegram.WebApp; tg = w && (w.initData || tgLaunch) ? w : null; resolve(); };
     if (window.Telegram && window.Telegram.WebApp) return done();  // скрипт уже подключён в index.html
     const s = document.createElement('script');
     s.src = 'https://telegram.org/js/telegram-web-app.js'; s.async = true; s.onload = done; s.onerror = done;
@@ -96,6 +97,60 @@ async function apiBlob(path, body) {
   return URL.createObjectURL(await res.blob());
 }
 const track = (name) => { if (state.tracked.has(name) || !state.token) return; state.tracked.add(name); api('/events', { method: 'POST', body: { name } }).catch(() => {}); };
+/* ---------- push-уведомления о заказе (Web Push; в Telegram сообщения шлёт бот) ---------- */
+const push = {
+  ios: () => /iphone|ipad|ipod/i.test(navigator.userAgent),
+  standalone: () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
+  supported: () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window,
+  reg: () => Promise.race([navigator.serviceWorker.ready, new Promise((_, no) => setTimeout(() => no(new Error('Фоновый обработчик не запущен: откройте сайт по HTTPS')), 4000))]),
+  key: (b) => { const p = (b + '='.repeat((4 - (b.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/'); return Uint8Array.from(atob(p), (c) => c.charCodeAt(0)); },
+  /* tg | ios-install | unsupported | denied | on | off */
+  async state() {
+    if (platform.kind === 'telegram') return 'tg';
+    if (!push.supported()) return push.ios() && !push.standalone() ? 'ios-install' : 'unsupported';
+    if (Notification.permission === 'denied') return 'denied';
+    try { const s = await (await push.reg()).pushManager.getSubscription(); return s && Notification.permission === 'granted' ? 'on' : 'off'; } catch { return 'off'; }
+  },
+  async enable() {
+    const cfg = await api('/push/config');
+    if (!cfg.enabled) throw new Error('Уведомления на сервере выключены');
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') throw new Error(perm === 'denied' ? 'Уведомления запрещены. Разрешите их в настройках браузера' : 'Разрешение не дано');
+    const reg = await push.reg();
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: push.key(cfg.public_key) });
+    const j = sub.toJSON();
+    await api('/push/subscribe', { method: 'POST', body: { endpoint: j.endpoint, keys: j.keys } });
+  },
+  async disable() {
+    const sub = await (await push.reg()).pushManager.getSubscription();
+    if (sub) { try { await api('/push/subscribe?endpoint=' + encodeURIComponent(sub.endpoint), { method: 'DELETE' }); } finally { await sub.unsubscribe(); } }
+  },
+  TEXT: {
+    tg: 'Сообщения о статусе присылает бот picPac в Telegram',
+    'ios-install': 'На iPhone уведомления работают, если добавить picPac на экран «Домой» (iOS 16.4+)',
+    unsupported: 'Этот браузер не поддерживает уведомления. Статус виден на экране заказа',
+    denied: 'Уведомления запрещены в настройках браузера для этого сайта',
+    on: 'Пришлём уведомление, когда статус заказа изменится',
+    off: 'Включите, чтобы узнать о смене статуса, даже когда приложение закрыто',
+  },
+  /* строка с переключателем: id контейнера уже есть в разметке */
+  async fill(id) {
+    const box = document.getElementById(id); if (!box) return;
+    let st;
+    try { st = await Promise.race([push.state(), new Promise((ok) => setTimeout(() => ok('slow'), 5000))]); } catch (x) { st = 'unsupported'; console.warn('push state', x); }
+    if (st === 'slow') st = 'off';
+    try { push.render(box, st); } catch (x) { box.innerHTML = `<p class="muted" style="margin:12px 14px">Уведомления недоступны: ${esc(String(x && x.message || x))}</p>`; }
+  },
+  render(box, st) {
+    const tgOn = st === 'tg' && state.user && state.user.tg;
+    const can = st === 'on' || st === 'off';
+    box.innerHTML = `<label class="tgl"><span>Уведомления о заказах<small class="muted" style="display:block;font-weight:500;margin-top:2px">${esc(st === 'tg' && !tgOn ? 'Откройте picPac из Telegram-бота, чтобы получать сообщения о статусе' : push.TEXT[st])}</small></span><input type="checkbox" data-act="pushtgl" ${st === 'on' || tgOn ? 'checked' : ''} ${can ? '' : 'disabled'}><i aria-hidden="true"></i></label>
+    ${st === 'on' ? '<button class="linkbtn" data-act="pushtest" style="margin:0 14px 12px">Прислать пробное уведомление</button>' : ''}
+    ${st === 'ios-install' ? '<button class="linkbtn" data-act="install" style="margin:0 14px 12px">Как добавить на экран «Домой»</button>' : ''}`;
+  },
+};
+
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 3400); }
 const go = (path) => { if (location.hash === '#' + path) route(); else location.hash = '#' + path; };
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
@@ -1458,14 +1513,14 @@ async function viewOrder(id) {
     ${o.tracking ? `<div class="card"><b>Трек-номер: ${esc(o.tracking.number)}</b><p class="muted" style="margin:6px 0 0">${esc(o.tracking.carrier)}. Номер демонстрационный, реальной отправки нет: по нему клиент отслеживал бы посылку у службы доставки.</p></div>` : ''}
     <div class="stack">
       <div class="rowbtn" style="min-height:64px">${ic(o.delivery.method === 'pvz' ? 'pin' : 'truck', 28)}<span class="g">${o.delivery.method === 'pvz' ? 'Ваш пункт выдачи' : 'Доставка'}<small style="white-space:normal">${o.delivery.method === 'pvz' ? esc((o.delivery.pvz_name || 'Пункт выдачи') + ', ' + (o.delivery.pvz_address || '')) : esc(o.delivery.address || '')}</small></span></div>
-      <div class="row" style="padding:4px 2px">${ic('bell')}<span class="g" style="font-weight:700">Уведомим в Telegram<br><span class="muted" style="font-weight:500">${state.user.tg ? 'Пришлём сообщение, когда статус изменится.' : 'Откройте picPac из Telegram, чтобы получать сообщения о статусе. Пока статус обновляется на этом экране.'}</span></span><span class="sw ${state.user.tg ? 'on' : ''}" role="img" aria-label="${state.user.tg ? 'Включено' : 'Выключено'}"></span></div>
+      ${active ? '<div class="toggles" id="pushrow" style="margin-top:0"></div>' : ''}
       <button class="btn line" data-act="support">${ic('chat')}Поддержка${o.tickets.length ? ` · ${o.tickets.length}` : ''}</button>
       <details><summary class="muted" style="cursor:pointer">Состав и стоимость: ${byn(o.total)}</summary><table class="sum">${o.price.lines.map((l) => `<tr><td>${esc(l.title)}${l.qty > 1 ? ` × ${l.qty}` : ''}</td><td>${byn(l.sum)}</td></tr>`).join('')}${o.price.discount ? `<tr><td>Скидка ${esc(o.promo || '')}</td><td>−${byn(o.price.discount)}</td></tr>` : ''}<tr><td>${esc(o.price.delivery_label)}</td><td>${o.price.delivery_cost ? byn(o.price.delivery_cost) : 'бесплатно'}</td></tr></table><p class="muted">Получатель: ${esc(o.delivery.recipient_name)}</p></details>
       ${!active ? '<button class="btn" data-act="reorder">Заказать ещё</button>' : ''}
     </div>
     <div class="foot">${ic('info', 18)}Демо-статусы: заказ двигает оператор</div>`, { active: '/profile', hasBack: true });
   };
-  draw();
+  draw(); push.fill('pushrow');
   const support = (prefix = '') => {
     sheet(`<h2>Поддержка по заказу</h2>${o.tickets.map((t) => `<div class="card" style="margin-bottom:8px"><span class="muted">${fmt(t.created_at)} · ${t.status === 'open' ? 'в работе' : 'закрыто'}</span><br>${esc(t.text)}</div>`).join('')}
     <label class="lb" for="tt">Ваш вопрос или отзыв</label><textarea id="tt" rows="3" maxlength="1000" placeholder="Например: хочу изменить пункт выдачи">${esc(prefix)}</textarea><div id="terr"></div><p></p><button class="btn" data-act="ticket">Отправить</button>`, (root) => {
@@ -1481,7 +1536,7 @@ async function viewOrder(id) {
   if (state.q.get('review')) support('Отзыв: ');
   state.poll = setInterval(async () => {
     if ($('.sheet-bg')) return;
-    try { const n = await api('/orders/' + id); if (n.status !== o.status || n.tickets.length !== o.tickets.length) { o = n; draw(); } } catch { /* нет сети — попробуем позже */ }
+    try { const n = await api('/orders/' + id); if (n.status !== o.status || n.tickets.length !== o.tickets.length) { o = n; draw(); push.fill('pushrow'); } } catch { /* нет сети — попробуем позже */ }
   }, 4000);
 }
 async function reorder(projectId, el) {
@@ -1505,6 +1560,7 @@ async function viewProfile() {
   ${last ? `<h2>${last.status === 'completed' ? 'Прошлая покупка' : 'Последний заказ'}</h2><div class="card row"><a href="#/order/${last.id}">${book(last.cover, last.project_title, true)}</a><div class="g"><button class="btn sm" style="width:100%" data-act="reorder">Заказать ещё</button><a class="btn sm line" style="width:100%;margin-top:8px" href="#/order/${last.id}?review=1">Оставить отзыв</a></div></div>` : ''}`}
   <h2>Оформление</h2><div class="themecards">${[['auto', 'Системная'], ['light', 'Светлая'], ['dark', 'Тёмная']].map(([v, l]) => `<button class="tcard2 ${(store.get('pp_theme') || 'auto') === v ? 'on' : ''}" data-act="thm" data-v="${v}" aria-label="Тема: ${l}"><span class="tprev ${v}"><i></i><i></i></span><b>${l}</b></button>`).join('')}</div>
   <div class="toggles"><label class="tgl"><span>Советы по качеству фото</span><input type="checkbox" data-act="qtgl" ${qtips() ? 'checked' : ''}><i aria-hidden="true"></i></label></div>
+  ${op ? '' : '<div class="toggles" id="pushrow"></div>'}
   ${V3 ? '<button class="rowbtn" data-act="onboard" style="margin-top:10px">' + ic('info') + '<span class="g">Как пользоваться приложением</span>' + ic('next', 20) + '</button>' : ''}
   <button class="rowbtn" data-act="assistant" style="margin-top:10px">${ic('chat')}<span class="g">Спросить помощника Робо<small>Заказы, цены, сроки, шаблоны</small></span>${ic('next', 20)}</button>
   ${platform.kind === 'telegram' || matchMedia('(display-mode: standalone)').matches ? '' : `<button class="rowbtn" data-act="install" style="margin-top:10px">${ic('upload')}<span class="g">Установить на телефон<small>Как приложение, без адресной строки</small></span>${ic('next', 20)}</button>`}
@@ -1512,6 +1568,7 @@ async function viewProfile() {
 ${u.guest ? '<h2>Сохраните свои работы</h2><div class="card"><p class="muted" style="margin:0 0 12px">Вы в гостевом режиме: проекты хранятся только в этом браузере. Создайте аккаунт или войдите, и проекты с заказами перейдут в него.</p><div class="stack"><button class="btn" data-act="account" data-mode="register">Создать аккаунт</button><button class="btn line" data-act="account" data-mode="login">Войти в существующий</button></div></div>' : ''}
   <h2>Аккаунт</h2><div class="stack"><button class="btn line" data-act="logout">${ic('out')}Выйти</button>
   ${op ? '' : '<button class="btn danger" data-act="wipe">Удалить мои данные и аккаунт</button><p class="why">Удалим фото, проекты, заказы и обращения без возможности восстановления</p>'}</div>`, { active: '/profile' });
+  push.fill('pushrow');
   $('#off').onchange = (e) => { state.sim.offline = e.target.checked; toast(e.target.checked ? 'Сеть отключена (имитация)' : 'Сеть включена'); };
   const lose = $('#lose'); if (lose) lose.onchange = (e) => { state.sim.loseResponse = e.target.checked; };
   state.ctx = {
@@ -1530,7 +1587,7 @@ async function viewOp(tab = 'orders') {
   let body = '';
   if (tab === 'orders') {
     const orders = await api('/admin/orders');
-    body = orders.length ? `<div class="stack">${orders.map((o) => `<div class="card"><div class="row"><span class="g"><h3>${esc(o.number)} · ${esc(o.client)}</h3><span class="muted">${esc(o.product_title)} · ${o.photos_count} фото · ${byn(o.total)} · ${fmt(o.created_at)}</span></span><span class="chip ${chipClass(o.status)}">${esc(LABELS[o.status] || o.status_label)}</span></div>${o.next.length ? `<div class="opts" style="margin-top:12px">${o.next.map((n) => `<button class="btn sm ${n === 'rejected' ? 'danger' : ''}" data-act="st" data-id="${o.id}" data-to="${n}">${n === 'rejected' ? 'Отклонить…' : '→ ' + LABELS[n]}</button>`).join('')}</div>` : ''}</div>`).join('')}</div>` : '<p class="muted">Заказов пока нет. Создайте заказ под клиентом.</p>';
+    body = orders.length ? `<div class="stack">${orders.map((o) => `<div class="card"><div class="row"><span class="g"><h3>${esc(o.number)} · ${esc(o.client)}</h3><span class="muted">${esc(o.product_title)} · ${o.photos_count} фото · ${byn(o.total)} · ${fmt(o.created_at)}</span></span><span class="chip ${chipClass(o.status)}">${esc(LABELS[o.status] || o.status_label)}</span></div>${o.moderation && o.moderation.flagged ? `<div class="note bad" style="margin:10px 0 0">${ic('warn', 18)}Проверьте вручную: ${o.moderation.flagged} фото помечены автоматической модерацией (модель ошибается, решение за оператором)</div>` : ''}${o.next.length ? `<div class="opts" style="margin-top:12px">${o.next.map((n) => `<button class="btn sm ${n === 'rejected' ? 'danger' : ''}" data-act="st" data-id="${o.id}" data-to="${n}">${n === 'rejected' ? 'Отклонить…' : '→ ' + LABELS[n]}</button>`).join('')}</div>` : ''}</div>`).join('')}</div>` : '<p class="muted">Заказов пока нет. Создайте заказ под клиентом.</p>';
   } else if (tab === 'tickets') {
     const t = await api('/admin/tickets');
     body = t.length ? `<div class="stack">${t.map((x) => `<div class="card"><span class="muted">Заказ ${x.order_id} · ${fmt(x.created_at)}</span><br>${esc(x.text)}</div>`).join('')}</div>` : '<p class="muted">Обращений нет.</p>';
@@ -1589,6 +1646,18 @@ const ACTS = {
   assistant: () => openAssistant(),
   qoff: () => { store.set('pp_qtips', '0'); toast('Советы скрыты. Включить: Профиль → Советы по качеству'); route(); },
   qtip: (el) => { store.set('pp_qtips', el.dataset.v); viewProfile(); },
+  pushtgl: async (el) => {
+    const want = el.checked; el.disabled = true;
+    try { if (want) { await push.enable(); toast('Уведомления включены'); } else { await push.disable(); toast('Уведомления выключены'); } }
+    catch (x) { el.checked = !want; toast(x.message || 'Не удалось включить уведомления'); }
+    push.fill('pushrow');
+  },
+  pushtest: async (el) => {
+    el.disabled = true;
+    try { const r = await api('/push/test', { method: 'POST' }); toast(r.sent ? 'Отправили. Уведомление придёт через пару секунд' : 'Не дошло до сервиса уведомлений браузера, попробуйте выключить и включить снова'); }
+    catch (x) { toast(x.message); }
+    el.disabled = false;
+  },
   qtgl: (el) => { store.set('pp_qtips', el.checked ? '1' : '0'); toast(el.checked ? 'Советы включены' : 'Советы выключены'); },
   pal: (el) => { store.set('pp_pal', el.dataset.v); document.documentElement.classList.toggle('calm', el.dataset.v === 'calm'); viewProfile(); },
   thm: (el) => { store.set('pp_theme', el.dataset.v); const t = el.dataset.v; const dark = t === 'dark' || (t === 'auto' && ((tg && tg.colorScheme === 'dark') || matchMedia('(prefers-color-scheme: dark)').matches)); document.documentElement.classList.toggle('dark', dark); platform.paint(); viewProfile(); },

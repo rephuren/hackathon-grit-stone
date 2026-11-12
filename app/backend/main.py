@@ -1176,7 +1176,7 @@ class CleanupIn(BaseModel):
 
 @api.post("/projects/{pid}/cleanup")
 def cleanup(pid: str, body: CleanupIn, user: dict = Depends(current_user)):
-    """Убирает из проекта дубликаты (остаётся лучший кадр из серии) и/или неудачные снимки. Файлы удаляются."""
+    """Убирает дубликаты и неудачные снимки из макета, сохраняя файлы для отмены."""
     with D.db() as c:
         row = own_project(c, pid, user)
         ensure_draft(row)
@@ -1192,14 +1192,14 @@ def cleanup(pid: str, body: CleanupIn, user: dict = Depends(current_user)):
                 if p["id"] not in drop and P.bad_reason(p):
                     drop[p["id"]] = "bad"
         for i in drop:
-            c.execute("DELETE FROM photos WHERE id=?", (i,))
+            c.execute("UPDATE photos SET excluded=1, pinned=0 WHERE id=? AND project_id=?", (i, pid))
         if drop and row["layout"]:
             regen_layout(c, row, product, "manual")
         touch(c, pid)
         D.audit(c, user, "photos_cleanup", f"project:{pid}", "ok",
-                f"duplicates={sum(1 for v in drop.values() if v == 'duplicate')} bad={sum(1 for v in drop.values() if v == 'bad')}")
+                f"excluded_duplicates={sum(1 for v in drop.values() if v == 'duplicate')} "
+                f"excluded_bad={sum(1 for v in drop.values() if v == 'bad')}")
         out = project_json(c, own_project(c, pid, user))
-    remove_files(list(drop))
     return {"removed": len(drop), "duplicates": sum(1 for v in drop.values() if v == "duplicate"),
             "bad": sum(1 for v in drop.values() if v == "bad"), "project": out}
 

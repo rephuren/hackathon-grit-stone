@@ -3,6 +3,7 @@
 Цены в копейках (целые числа), валюта BYN. Данные СИНТЕТИЧЕСКИЕ: ориентированы на публичные
 цены picpac.by, но не являются реальным прайсом. Формулы описаны в README."""
 import math
+from datetime import date
 
 DPI_MIN = 150  # минимальное разрешение печати, точек на дюйм
 
@@ -93,6 +94,8 @@ def default_settings(product: dict) -> dict:
     s = {"size": o["sizes"][0]["id"], key: o["covers"][0]["id"], "copies": 1}
     if product["kind"] in ("book", "calendar"):
         s["pages"] = product["pages"]["default"]
+    if product["kind"] == "calendar":
+        s["year"] = date.today().year + 1
     return s
 
 
@@ -120,6 +123,14 @@ def validate_settings(product: dict, settings: dict) -> dict:
             raise PricingError("Число страниц должно быть числом")
         if not (p["min"] <= out["pages"] <= p["max"]) or (out["pages"] - p["min"]) % p["step"]:
             raise PricingError(f"Страниц: от {p['min']} до {p['max']} с шагом {p['step']}")
+    if product["kind"] == "calendar":
+        try:
+            out["year"] = int(out["year"])
+        except (TypeError, ValueError):
+            raise PricingError("Год календаря должен быть числом")
+        current = date.today().year
+        if not current <= out["year"] <= current + 10:
+            raise PricingError(f"Год календаря: от {current} до {current + 10}")
     return out
 
 
@@ -144,7 +155,7 @@ def compute_price(product: dict, settings: dict, n_photos: int, promo=None, deli
                   "qty": copies, "unit": unit, "sum": unit * copies}]
     elif product["kind"] == "calendar":
         unit = size["base"]
-        lines = [{"title": f"{product['title']} {size['label']}, 12 месяцев",
+        lines = [{"title": f"{product['title']} {size['label']}, {settings['year']} год · 12 месяцев",
                   "qty": copies, "unit": unit, "sum": unit * copies}]
     else:
         qty = n_photos * copies

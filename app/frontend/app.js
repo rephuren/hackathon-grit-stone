@@ -396,13 +396,14 @@ function optionsPanel(product, settings, onChange) {
   const html = `<label class="lb">Формат</label><div class="opts">${o.sizes.map((s) => btn('size', s.id, s.label, settings.size)).join('')}</div>
   <label class="lb">${product.kind === 'calendar' ? 'Крепление' : product.kind === 'book' ? 'Обложка' : 'Поверхность'}</label><div class="opts">${o.covers.map((c) => btn(k, c.id, c.label, settings[k])).join('')}</div>
   ${pg && product.kind === 'book' ? `<label class="lb" for="pgs">Страниц: <span id="pgv">${settings.pages}</span></label><input id="pgs" type="range" min="${pg.min}" max="${pg.max}" step="${pg.step}" value="${settings.pages}">` : ''}
-  ${product.kind === 'calendar' ? '<p class="why">Обложка + 12 месяцев</p>' : ''}
+  ${product.kind === 'calendar' ? `<label class="lb" for="calyear">Год календаря</label><input id="calyear" type="number" min="${new Date().getFullYear()}" max="${new Date().getFullYear() + 10}" value="${settings.year || new Date().getFullYear() + 1}"><p class="why">Обложка + 12 месяцев с реальной сеткой дат</p>` : ''}
   <label class="lb" for="cps">${withLayout ? 'Экземпляров' : 'Копий каждого фото'}: <span id="cpv">${settings.copies}</span></label><input id="cps" type="range" min="1" max="10" value="${settings.copies}">`;
   return {
     html,
     bind(root) {
       $$('[data-opt]', root).forEach((b) => b.addEventListener('click', () => { settings[b.dataset.opt] = b.dataset.val; onChange(true); }));
       const pgs = $('#pgs', root); if (pgs) { pgs.oninput = () => { settings.pages = +pgs.value; $('#pgv', root).textContent = pgs.value; onChange(false); }; }
+      const calyear = $('#calyear', root); if (calyear) { calyear.onchange = () => { settings.year = +calyear.value; onChange(false); }; }
       const cps = $('#cps', root); cps.oninput = () => { settings.copies = +cps.value; $('#cpv', root).textContent = cps.value; onChange(false); };
     },
   };
@@ -411,7 +412,7 @@ function paramsLabel(project) {
   const s = project.settings, o = project.product.options;
   const size = (o.sizes.find((x) => x.id === s.size) || {}).label || s.size;
   const cov = (o.covers.find((x) => x.id === (s.cover || s.finish)) || {}).label || '';
-  const volume = project.product.kind === 'calendar' ? '12 месяцев' : s.pages ? `${s.pages} стр.` : '';
+  const volume = project.product.kind === 'calendar' ? `12 месяцев · ${s.year}` : s.pages ? `${s.pages} стр.` : '';
   return [size, cov, volume, `${s.copies} шт.`].filter(Boolean).join(' · ');
 }
 function paramsSheet(project, after) {
@@ -461,7 +462,7 @@ function cleanCard(project, chk, link) {
   if (!dup && !bad) return '';
   const badWhy = [...new Set((chk.bad || []).map((b) => b.reason))].join(', ');
   return `<div class="note y"><b>Можно почистить подборку</b>
-    <div class="muted" style="margin:4px 0 10px">${dup ? `Похожих кадров: ${dup}. Из каждой серии оставим самый чёткий и крупный. ` : ''}${bad ? `Неудачных снимков: ${bad} (${esc(badWhy)}). ` : ''}Удалённое вернуть нельзя, но оригиналы на вашем телефоне остаются.</div>
+    <div class="muted" style="margin:4px 0 10px">${dup ? `Похожих кадров: ${dup}. Из каждой серии оставим самый чёткий и крупный. ` : ''}${bad ? `Неудачных снимков: ${bad} (${esc(badWhy)}). ` : ''}Фото переместятся в «Остальные»: их можно вернуть в проект одним нажатием.</div>
     <div class="acts">${dup ? `<button class="btn sm" data-act="clean" data-kind="duplicates">Убрать дубликаты (${dup})</button>` : ''}${bad ? `<button class="btn sm ${dup ? 'line' : ''}" data-act="clean" data-kind="bad">Убрать неудачные (${bad})</button>` : ''}${link ? `<a class="btn sm grey" href="${link}">Подробнее</a>` : ''}</div></div>`;
 }
 async function doCleanup(project, kind, after) {
@@ -852,6 +853,13 @@ async function stepAI(project) {
 
 /* ---------- готовый альбом ---------- */
 const CAL_MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+const CAL_WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+function calendarGridHtml(year, month) {
+  const first = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
+  const count = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const cells = Array.from({ length: first }, () => '<i></i>').concat(Array.from({ length: count }, (_, i) => `<b${(first + i) % 7 > 4 ? ' class="weekend"' : ''}>${i + 1}</b>`));
+  return `<div class="cal-head"><strong>${CAL_MONTHS[month]}</strong><span>${year}</span></div><div class="cal-grid">${CAL_WEEKDAYS.map((d, i) => `<em${i > 4 ? ' class="weekend"' : ''}>${d}</em>`).join('')}${cells.join('')}</div>`;
+}
 const PAGE_THEMES = [['classic', 'Классика', 'Чисто и просто'], ['kids', 'Детский', 'Звёздочки, облака, рамки'], ['travel', 'Путешествие', 'Фото-карточки на крафте'],
   ['party', 'Праздник', 'Яркий коллаж с конфетти'], ['soft', 'Нежный', 'Мягкие цвета, круглые фото']];
 let curTheme = 'classic';
@@ -860,7 +868,8 @@ function pageHtml(pg, byId, k = 'url') {
   if (!pg) return `<div class="pg t-blank ${th}"></div>`;
   if (pg.cover) return `<div class="pg t-cover ${th}"><b>${esc(pg.title)}</b>${pg.photo ? `<img src="${pg.photo[k]}" alt="">` : ''}</div>`;
   const imgs = pg.photo_ids.filter((i) => byId[i]).map((i) => `<img src="${byId[i][k]}" alt="">`).join('');
-  return `<div class="pg t-${pg.template} v${pg.variant || 0} ${th}">${pg.template === 'blank' ? 'пусто' : imgs}${pg.month ? `<span class="cap">${esc(pg.month)}</span>` : pg.caption ? `<span class="cap">${esc(fmtDate(pg.caption))}</span>` : ''}</div>`;
+  if (Number.isInteger(pg.monthIndex)) return `<div class="pg t-calendar ${th}"><div class="cal-photo">${imgs}</div>${calendarGridHtml(pg.year, pg.monthIndex)}</div>`;
+  return `<div class="pg t-${pg.template} v${pg.variant || 0} ${th}">${pg.template === 'blank' ? 'пусто' : imgs}${pg.caption ? `<span class="cap">${esc(fmtDate(pg.caption))}</span>` : ''}</div>`;
 }
 async function stepLayout(project) {
   const incl = project.photos.filter((p) => !p.excluded);
@@ -879,10 +888,11 @@ async function stepLayout(project) {
   const byId = Object.fromEntries(project.photos.map((p) => [p.id, p]));
   const lay = project.layout, pages = lay ? lay.pages : [];
   const calendar = project.product.kind === 'calendar';
-  if (calendar) pages.forEach((pg, i) => { pg.month = CAL_MONTHS[i] || `Месяц ${i + 1}`; });
+  if (calendar) pages.forEach((pg, i) => { pg.month = CAL_MONTHS[i] || `Месяц ${i + 1}`; pg.monthIndex = i; pg.year = project.settings.year || new Date().getFullYear() + 1; });
   curTheme = (lay && lay.theme) || 'classic';
   /* У календаря каждый месяц — отдельный лист; у книги страницы показываются разворотами. */
-  const spreads = [[null, { cover: true, title: project.title, photo: incl[0] }]];
+  const coverPage = { cover: true, title: `${project.title} · ${project.settings.year || ''}`.trim(), photo: incl[0] };
+  const spreads = calendar ? [[coverPage, null]] : [[null, coverPage]];
   if (calendar) pages.forEach((pg) => spreads.push([pg, null]));
   else for (let i = 0; i < pages.length; i += 2) spreads.push([pages[i], pages[i + 1] || null]);
   let cur = Math.max(0, Math.min(spreads.length - 1, +(state.q.get('s') || 0)));
@@ -893,15 +903,15 @@ async function stepLayout(project) {
   ${fresh ? tip('robot', calendar ? `Разложил ${incl.length} фото по 12 месяцам. Листайте календарь и выберите оформление.` : `Разложил ${incl.length} фото на ${project.settings.pages} стр. и сгруппировал по дате съёмки. Листайте развороты.`, 'lay1') : ''}
   ${lay && lay.unplaced ? `<div class="note bad"><b>Не помещаются ${lay.unplaced} фото.</b> Увеличьте число страниц.<button class="btn sm line" data-act="style">Изменить число страниц</button></div>` : ''}
   ${blank ? `<div class="note y"><b>${blank} ${plural(blank, 'страница пустая', 'страницы пустые', 'страниц пустые')}.</b> В этом ${calendar ? 'календаре' : 'альбоме'} минимум ${project.product.pages.min} ${calendar ? 'месячных листов' : 'стр.'}. Добавьте ещё фото, чтобы заполнить их.<a class="btn sm line" href="#/project/${project.id}/photos">Добавить фото</a></div>` : ''}
-  <div class="bookview"><div class="spread" id="spread"></div><button class="fab l" data-act="prev" aria-label="Предыдущий разворот">${ic('back')}</button><button class="fab rr" data-act="nextsp" aria-label="Следующий разворот">${ic('next')}</button></div>
+  <div class="bookview${calendar ? ' calendar-view' : ''}"><div class="spread" id="spread"></div><button class="fab l" data-act="prev" aria-label="Предыдущий разворот">${ic('back')}</button><button class="fab rr" data-act="nextsp" aria-label="Следующий разворот">${ic('next')}</button></div>
   <div class="dots" id="dots"></div>
-  <div class="strip sp" id="spstrip">${spreads.map((s, i) => `<button data-s="${i}" aria-label="${i ? calendar ? CAL_MONTHS[i - 1] || `Месяц ${i}` : `Разворот ${i}` : 'Обложка'}"><span class="mini-sp">${pageHtml(s[0], byId, 'thumb')}${pageHtml(s[1], byId, 'thumb')}</span></button>`).join('')}</div>
+  <div class="strip sp" id="spstrip">${spreads.map((s, i) => `<button data-s="${i}" aria-label="${i ? calendar ? CAL_MONTHS[i - 1] || `Месяц ${i}` : `Разворот ${i}` : 'Обложка'}"><span class="mini-sp">${pageHtml(s[0], byId, 'thumb')}${calendar ? '' : pageHtml(s[1], byId, 'thumb')}</span></button>`).join('')}</div>
   <div class="two" style="margin-top:8px"><button class="rowbtn" data-act="cover">${ic(calendar ? 'cal' : 'book')}<span class="g">Обложка</span>${ic('next', 20)}</button><button class="rowbtn" data-act="style">${ic('layers')}<span class="g">Стиль</span>${ic('next', 20)}</button></div>
   <div class="statusrow">${okAll ? `<span><i class="dot">${ic('check', 16, 3)}</i>Макет проверен</span>` : `<a href="#/project/${project.id}/check"><i class="dot w">${ic('warn', 15, 2.4)}</i>${chk.ok ? `${nw} ${plural(nw, 'замечание', 'замечания', 'замечаний')} ›` : 'Нужно исправить ›'}</a>`}<span class="sv">Все изменения<br>сохранены ✓</span></div>
   <button class="btn" data-act="tocart" ${lay && !lay.unplaced ? '' : 'disabled'}>${okAll ? 'В корзину' : calendar ? 'Проверить календарь' : 'Проверить книгу'}</button>`, { noNav: true, hasBack: true });
   const draw = () => {
     const s = spreads[cur];
-    $('#spread').innerHTML = pageHtml(s[0], byId) + pageHtml(s[1], byId);
+    $('#spread').innerHTML = pageHtml(s[0], byId) + (calendar ? '' : pageHtml(s[1], byId));
     $('#dots').innerHTML = spreads.length <= 9 ? spreads.map((_, i) => `<i class="${i === cur ? 'on' : ''}"></i>`).join('') : '';
     $('#dots').insertAdjacentHTML('beforeend', `<span style="margin-left:8px">${cur ? calendar ? `${CAL_MONTHS[cur - 1] || 'Месяц'} · ${cur} из 12` : `Разворот ${cur} из ${spreads.length - 1}` : 'Обложка'}</span>`);
     $$('#spstrip button').forEach((b, i) => b.classList.toggle('on', i === cur));
@@ -920,8 +930,8 @@ async function stepLayout(project) {
     tocart: () => { track('check_passed'); go(`/project/${project.id}/${okAll || (chk.ok && acked(project)) ? 'cart' : 'check'}`); },
     cover: () => {
       const o = project.product.options; let cov = project.settings.cover;
-      sheet(`<h2>Обложка</h2><label class="lb" for="ttl">Название на обложке</label><input id="ttl" type="text" maxlength="80" value="${esc(project.title)}">
-      <label class="lb">Тип обложки</label><div class="opts" id="covs">${o.covers.map((c) => `<button class="opt ${c.id === cov ? 'on' : ''}" data-c="${c.id}">${esc(c.label)}</button>`).join('')}</div>
+      sheet(`<h2>${calendar ? 'Обложка календаря' : 'Обложка'}</h2><label class="lb" for="ttl">Название на обложке</label><input id="ttl" type="text" maxlength="80" value="${esc(project.title)}">
+      <label class="lb">${calendar ? 'Крепление' : 'Тип обложки'}</label><div class="opts" id="covs">${o.covers.map((c) => `<button class="opt ${c.id === cov ? 'on' : ''}" data-c="${c.id}">${esc(c.label)}</button>`).join('')}</div>
       <p class="muted">На обложке печатается первое фото проекта. Поменять его можно, изменив порядок на экране фотографий.</p><div id="cerr"></div><button class="btn" data-act="savecover">Сохранить</button>`, (root) => {
         $$('[data-c]', root).forEach((b) => (b.onclick = () => { cov = b.dataset.c; $$('[data-c]', root).forEach((x) => x.classList.toggle('on', x === b)); }));
         state.ctx.savecover = async (el) => {

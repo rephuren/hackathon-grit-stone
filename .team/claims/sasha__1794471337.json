@@ -1,9 +1,0 @@
-{
- "who": "sasha",
- "task": "тест протокола",
- "paths": [
-  "app/frontend/app.js"
- ],
- "created": 1794471337,
- "updated": 1794471337
-}

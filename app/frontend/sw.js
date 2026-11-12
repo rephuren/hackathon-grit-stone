@@ -1,6 +1,6 @@
 // Минимальный service worker для установки как приложения (PWA). Сначала сеть, кэш только как запасной вариант,
 // чтобы после обновления никогда не показывать устаревший код. Запросы к API не кэшируем.
-const CACHE = 'picpac-shell-v1';
+const CACHE = 'picpac-shell-v2';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', (e) => {

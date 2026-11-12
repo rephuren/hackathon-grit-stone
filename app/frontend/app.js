@@ -574,7 +574,7 @@ async function stepPhotos(project) {
   <button class="rowbtn" data-act="params">${ic(productIcon(project))}<span class="g">${esc(project.product.title)}<small>${esc(paramsLabel(project))}</small></span>${ic('next')}</button>
   ${n ? `<div class="lead" style="margin-top:12px"><img src="${inc[0].proxy || inc[0].url}" alt="Первое фото проекта"></div>` : ''}
   <div id="up"></div>
-  ${n ? `<div class="row" style="margin:14px 0 10px"><button class="chip g" style="border:0;justify-content:flex-start;background:none;font-size:15px;padding-left:0" data-act="toggleedit">${editMode ? 'Готово' : 'Галерея · изменить порядок'}</button><span class="chip y" style="font-size:14px;padding:7px 13px">${n} из ${min}+ фото</span></div>` : ''}
+  ${n ? `<div class="row" style="margin:14px 0 10px"><button class="chip g" style="border:0;justify-content:flex-start;background:none;font-size:15px;padding-left:0" data-act="toggleedit">${editMode ? 'Готово' : 'Галерея · изменить порядок'}</button><span class="chip y" style="font-size:14px;padding:7px 13px">${n} фото · мин. ${min}</span></div>` : ''}
   ${n ? `<p class="why" style="margin:-4px 0 10px">${project.product.kind === 'print' ? `Печатаем каждое фото: ${n} шт.` : `Нужно минимум ${min} фото. ${project.settings.pages ? `Страниц в ${project.product.kind === 'calendar' ? 'календаре: 12 месяцев' : `книге: ${project.settings.pages}`} — фото разложим по ним автоматически.` : ''}`}</p>` : ''}
   ${n ? cleanCard(project, chk, `#/project/${project.id}/check`) : ''}
   ${n && !cleanNums(chk).dup && !cleanNums(chk).bad && (dups || bad) ? `<a class="note y" style="display:block" href="#/project/${project.id}/check"><b>Проверка фото:</b> ${bad} ${plural(bad, 'фото', 'фото', 'фото')} требуют внимания. Посмотреть ›</a>` : ''}
@@ -1340,11 +1340,13 @@ async function viewProfile() {
   const last = orders.find((o) => o.status === 'completed') || orders[0];
   const check = (id, on, text) => `<label class="ack" style="margin:10px 0"><input type="checkbox" id="${id}" ${on ? 'checked' : ''}><span style="font-weight:500">${text}</span></label>`;
   shell(`<div class="hello"><span class="av">${ic('user', 28)}</span><h1>Привет${u.guest || op ? '' : ', ' + esc(u.name.split(' ')[0])}!</h1><img src="${mimg('happy')}" alt=""></div>
-  ${op ? '<p class="muted">Вы вошли как оператор.</p>' : `<div class="menu y"><div>${ic('gift')}<span class="g">Бонусы</span><span class="chip w">Скоро</span></div></div>
-  <div class="menu"><a href="#/orders">${ic('box')}<span class="g">Мои заказы</span>${ic('next', 20)}</a><a href="#/orders?f=done">${ic('bag')}<span class="g">Мои покупки</span>${ic('next', 20)}</a><a href="#/projects">${ic('folder')}<span class="g">Мои проекты</span>${ic('next', 20)}</a><div style="color:var(--muted)">${ic('heart')}<span class="g">Избранное</span><span class="chip">Скоро</span></div><button data-act="feedback">${ic('chat')}<span class="g">Отзывы и вопросы</span>${ic('next', 20)}</button></div>
+  ${op ? '<p class="muted">Вы вошли как оператор.</p>' : `<div class="menu y"><div>${ic('gift')}<span class="g">Бонусы</span><span class="chip soon">Скоро</span></div></div>
+  <div class="menu"><a href="#/orders">${ic('box')}<span class="g">Мои заказы</span>${ic('next', 20)}</a><a href="#/orders?f=done">${ic('bag')}<span class="g">Мои покупки</span>${ic('next', 20)}</a><a href="#/projects">${ic('folder')}<span class="g">Мои проекты</span>${ic('next', 20)}</a><div style="color:var(--muted)">${ic('heart')}<span class="g">Избранное</span><span class="chip soon">Скоро</span></div><button data-act="feedback">${ic('chat')}<span class="g">Отзывы и вопросы</span>${ic('next', 20)}</button></div>
   ${last ? `<h2>${last.status === 'completed' ? 'Прошлая покупка' : 'Последний заказ'}</h2><div class="card row"><a href="#/order/${last.id}">${book(last.cover, last.project_title, true)}</a><div class="g"><button class="btn sm" style="width:100%" data-act="reorder">Заказать ещё</button><a class="btn sm line" style="width:100%;margin-top:8px" href="#/order/${last.id}?review=1">Оставить отзыв</a></div></div>` : ''}`}
   <h2>Оформление</h2><div class="seg">${[['v3', 'Новое'], ['v2', 'Прошлое'], ['classic', 'Первое']].map(([v, l]) => `<button data-act="design" data-v="${v}" class="${(window.ppDesign ? window.ppDesign.get() : 'classic') === v ? 'on' : ''}">${l}</button>`).join('')}</div>
   ${V3 ? '<button class="rowbtn" data-act="onboard" style="margin-top:10px">' + ic('info') + '<span class="g">Как пользоваться приложением</span>' + ic('next', 20) + '</button>' : ''}
+  <button class="rowbtn" data-act="assistant" style="margin-top:10px">${ic('chat')}<span class="g">Спросить помощника Робо<small>Заказы, цены, сроки, шаблоны</small></span>${ic('next', 20)}</button>
+  ${platform.kind === 'telegram' || matchMedia('(display-mode: standalone)').matches ? '' : `<button class="rowbtn" data-act="install" style="margin-top:10px">${ic('upload')}<span class="g">Установить на телефон<small>Как приложение, без адресной строки</small></span>${ic('next', 20)}</button>`}
   <h2>Режим демонстрации</h2><div class="card">${check('off', state.sim.offline, 'Имитировать отсутствие сети: приложение не зависнет, черновик сохранится')}${op ? '' : check('lose', state.sim.loseResponse, 'Оборвать связь в момент оформления следующего заказа: дубликат не появится')}</div>
 ${u.guest ? '<h2>Сохраните свои работы</h2><div class="card"><p class="muted" style="margin:0 0 12px">Вы в гостевом режиме: проекты хранятся только в этом браузере. Создайте аккаунт или войдите, и проекты с заказами перейдут в него.</p><div class="stack"><button class="btn" data-act="account" data-mode="register">Создать аккаунт</button><button class="btn line" data-act="account" data-mode="login">Войти в существующий</button></div></div>' : ''}
   <h2>Аккаунт</h2><div class="stack"><button class="btn line" data-act="logout">${ic('out')}Выйти</button>
@@ -1418,6 +1420,11 @@ const ACTS = {
   reload: () => route(),
   closesheet: () => closeSheet(),
   onboard: () => maybeOnboarding(true),
+  install: async () => {
+    if (window.ppInstall) { const ev = window.ppInstall; window.ppInstall = null; ev.prompt(); return; }
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    sheet(`<h2>Установить picPac на телефон</h2>${ios ? '<p>1. Откройте сайт в Safari.<br>2. Нажмите «Поделиться» внизу экрана.<br>3. Выберите «На экран „Домой“».</p>' : '<p>Откройте меню браузера (⋮) и выберите «Установить приложение» или «Добавить на главный экран».</p>'}<p class="muted">Приложение откроется во весь экран, без адресной строки. Проекты и заказы те же, что в Telegram и на сайте.</p>`);
+  },
   assistant: () => openAssistant(),
   design: (el) => { if (window.ppDesign && window.ppDesign.get() !== el.dataset.v) window.ppDesign.set(el.dataset.v); },
   account: (el, ev) => { if (ev) ev.preventDefault(); accountSheet(el.dataset.mode || 'register'); },

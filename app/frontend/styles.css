@@ -355,3 +355,6 @@ h2.sec{font-size:18px;margin:16px 0 8px}
 .askrow{display:flex;gap:8px;align-items:center}.askrow input{flex:1;min-width:0}
 .tcard .pg i:nth-child(1){background:linear-gradient(135deg,#f7c59f,#f29e7d)}.tcard .pg i:nth-child(2){background:linear-gradient(135deg,#a9c9f2,#7aa7e0)}
 .tcard .pg i:nth-child(3){background:linear-gradient(135deg,#c6e5b5,#8fca86)}.tcard .pg i:nth-child(4){background:linear-gradient(135deg,#f6e08f,#ecc44f)}
+/* «Скоро»: видно, что раздела ещё нет, и он не выглядит кнопкой */
+.chip.soon{background:#ecece6;color:#55554f;border:1px dashed #b9b9b0;font-size:12px;padding:3px 9px;margin-left:auto}
+.menu > div:has(.chip.soon){color:#76766f;cursor:default}

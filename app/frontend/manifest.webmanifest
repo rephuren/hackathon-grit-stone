@@ -25,5 +25,47 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "id": "/",
+  "description": "Фотокниги, календари и печать фото: от снимков на телефоне до готового заказа.",
+  "categories": [
+    "photo",
+    "shopping",
+    "lifestyle"
+  ],
+  "shortcuts": [
+    {
+      "name": "Создать фотокнигу",
+      "short_name": "Фотокнига",
+      "url": "/#/new",
+      "icons": [
+        {
+          "src": "img/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Календарь",
+      "short_name": "Календарь",
+      "url": "/#/new?kind=calendar",
+      "icons": [
+        {
+          "src": "img/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Мои заказы",
+      "short_name": "Заказы",
+      "url": "/#/orders",
+      "icons": [
+        {
+          "src": "img/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }

@@ -64,6 +64,7 @@
   <script src="config.js"></script>
   <script src="motion.js"></script>
   <script src="app.js"></script>
+  <script>window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.ppInstall = e; });</script>
   <script>if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(function () {});</script>
 </body>
 </html>

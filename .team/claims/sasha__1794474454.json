@@ -1,9 +1,0 @@
-{
- "who": "sasha",
- "task": "WAL и busy_timeout для SQLite",
- "paths": [
-  "app/backend/db.py"
- ],
- "created": 1794474454,
- "updated": 1794474454
-}
